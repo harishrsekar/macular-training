@@ -217,45 +217,47 @@ function RegistrationPage() {
   };
 
   return (
-    <div className="form-container">
-      <h1>Patient Registration</h1>
-      <form onSubmit={handleSubmit}>
-        <label>Name:</label>
-        <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+    <div className="centered-page">
+      <div className="form-container">
+        <h1>Patient Registration</h1>
+        <form onSubmit={handleSubmit}>
+          <label>Name:</label>
+          <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
 
-        <label>Age:</label>
-        <input type="number" required value={formData.age} onChange={(e) => setFormData({ ...formData, age: e.target.value })} />
+          <label>Age:</label>
+          <input type="number" required value={formData.age} onChange={(e) => setFormData({ ...formData, age: e.target.value })} />
 
-        <label>Gender:</label>
-        <select value={formData.gender} onChange={(e) => setFormData({ ...formData, gender: e.target.value })}>
-          <option value="Male">Male</option>
-          <option value="Female">Female</option>
-          <option value="Other">Other</option>
-        </select>
+          <label>Gender:</label>
+          <select value={formData.gender} onChange={(e) => setFormData({ ...formData, gender: e.target.value })}>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+          </select>
 
-        <label>Eye:</label>
-        <select value={formData.eye} onChange={(e) => setFormData({ ...formData, eye: e.target.value })}>
-          <option value="OD">OD</option>
-          <option value="OS">OS</option>
-        </select>
+          <label>Eye:</label>
+          <select value={formData.eye} onChange={(e) => setFormData({ ...formData, eye: e.target.value })}>
+            <option value="OD">OD</option>
+            <option value="OS">OS</option>
+          </select>
 
-        <label>Spectacle:</label>
-        <select value={formData.spectacle} onChange={(e) => setFormData({ ...formData, spectacle: e.target.value })}>
-          <option value="No">No</option>
-          <option value="Yes">Yes</option>
-        </select>
+          <label>Spectacle:</label>
+          <select value={formData.spectacle} onChange={(e) => setFormData({ ...formData, spectacle: e.target.value })}>
+            <option value="No">No</option>
+            <option value="Yes">Yes</option>
+          </select>
 
-        <label>BCVA:</label>
-        <input type="text" value={formData.bcva} onChange={(e) => setFormData({ ...formData, bcva: e.target.value })} />
+          <label>BCVA:</label>
+          <input type="text" value={formData.bcva} onChange={(e) => setFormData({ ...formData, bcva: e.target.value })} />
 
-        <label>Contact:</label>
-        <input type="text" required value={formData.contact} onChange={(e) => setFormData({ ...formData, contact: e.target.value })} />
+          <label>Contact:</label>
+          <input type="text" required value={formData.contact} onChange={(e) => setFormData({ ...formData, contact: e.target.value })} />
 
-        <label>Address:</label>
-        <textarea required value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })}></textarea>
+          <label>Address:</label>
+          <textarea required value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })}></textarea>
 
-        <button type="submit">Start Test</button>
-      </form>
+          <button type="submit">Start Test</button>
+        </form>
+      </div>
     </div>
   );
 }
@@ -281,28 +283,30 @@ function InstructionsPage() {
   };
 
   return (
-    <div className="instructions-container" style={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      height: '100vh',
-      textAlign: 'center'
-    }}>
-      {showAudio && (
-        <AudioPlayer
-          src="/intro.mp3"
-          onEnded={handleAudioEnded}
-          ref={audioRef}
-        />
-      )}
-      <h1 style={{ 
-        fontSize: '2.5rem', 
-        margin: '20px',
-        maxWidth: '800px'
+    <div className="centered-page">
+      <div className="instructions-container" style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        height: '100%',
+        textAlign: 'center'
       }}>
-        Please press the arrow indicating the direction of opening in the letter C
-      </h1>
+        {showAudio && (
+          <AudioPlayer
+            src="/intro.mp3"
+            onEnded={handleAudioEnded}
+            ref={audioRef}
+          />
+        )}
+        <h1 style={{ 
+          fontSize: '2.5rem', 
+          margin: '20px',
+          maxWidth: '800px'
+        }}>
+          Please press the arrow indicating the direction of opening in the letter C
+        </h1>
+      </div>
     </div>
   );
 }

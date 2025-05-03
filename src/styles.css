@@ -124,3 +124,12 @@ button:hover {
 .result-container h1, .success-container h1 {
     margin-bottom: 30px;
 }
+
+.centered-page {
+    min-height: 100vh;
+    width: 100vw;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+}
