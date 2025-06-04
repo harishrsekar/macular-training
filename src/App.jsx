@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useNavigate, useParams } from "
 import "./styles.css"; 
 
 // AppBar component
-function AppBar({ patientName, onFontSizeChange, selectedQuadrant, setSelectedQuadrant, duration, setDuration, showDurationDropdown = false, scrollSpeed, setScrollSpeed, showSpeedDropdown = false, fontSizeOptions }) {
+function AppBar({ patientName, onFontSizeChange, selectedQuadrant, setSelectedQuadrant, duration, setDuration, showDurationDropdown = false, scrollSpeed, setScrollSpeed, showSpeedDropdown = false, fontSizeOptions, selectedFontSize, centralSpot, setCentralSpot, showCentralSpot = false }) {
   return (
     <div style={{
       position: 'fixed',
@@ -23,6 +23,20 @@ function AppBar({ patientName, onFontSizeChange, selectedQuadrant, setSelectedQu
         Name: {patientName}
       </div>
       <div style={{ display: 'flex', gap: '18px', alignItems: 'center', flexWrap: 'nowrap' }}>
+        {showCentralSpot && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <label style={{ color: 'white', marginRight: 4, whiteSpace: 'nowrap' }}>Central Spot:</label>
+            <select
+              value={centralSpot}
+              onChange={e => setCentralSpot(e.target.value)}
+              style={{ padding: '8px', borderRadius: '4px', backgroundColor: '#333', color: 'white', border: '1px solid #555', minWidth: 80 }}
+            >
+              <option value="big">Big</option>
+              <option value="medium">Medium</option>
+              <option value="small">Small</option>
+            </select>
+          </div>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <label style={{ color: 'white', marginRight: 4, whiteSpace: 'nowrap' }}>Quadrant:</label>
           <select
@@ -68,6 +82,7 @@ function AppBar({ patientName, onFontSizeChange, selectedQuadrant, setSelectedQu
           </div>
         )}
         <select 
+          value={selectedFontSize}
           onChange={(e) => onFontSizeChange(parseInt(e.target.value))}
           style={{
             padding: '8px',
@@ -147,9 +162,9 @@ const testCases = [
   { size: 20, direction: "ArrowDown", power_grid: "2" },
   { size: 18, direction: "ArrowLeft", power_grid: "3" },
   { size: 16, direction: "ArrowUp", power_grid: "4" },
-  { size: 80, direction: "ArrowRight", power_grid: "1" },
-  { size: 14, direction: "ArrowLeft", power_grid: "2" },
-  { size: 12, direction: "ArrowRight", power_grid: "3" },
+  { size: 14, direction: "ArrowRight", power_grid: "1" },
+  { size: 12, direction: "ArrowLeft", power_grid: "2" },
+  { size: 10, direction: "ArrowRight", power_grid: "3" },
   { size: 8, direction: "ArrowDown", power_grid: "4" },
 ];
 
@@ -173,7 +188,6 @@ function COverlay({ direction, size, power_grid }) {
       "3": { top: "75%", left: "50%" },    // Bottom-center
       "4": { top: "50%", left: "25%" }     // Center-left
     };
-
     return positions[power_grid] || { top: "50%", left: "50%" };
   };
 
@@ -189,7 +203,8 @@ function COverlay({ direction, size, power_grid }) {
         fontSize: `${size}px`,
         fontFamily: 'sans-serif',
         color: 'black',
-        fontWeight: 'bold'
+        fontWeight: 'bold',
+        pointerEvents: 'none',
       }}
     >
       C
@@ -293,6 +308,7 @@ function InstructionsPage() {
         textAlign: 'center'
       }}>
         {showAudio && (
+          // Plays intro.mp3 audio file when instructions page loads
           <AudioPlayer
             src="/intro.mp3"
             onEnded={handleAudioEnded}
@@ -311,11 +327,15 @@ function InstructionsPage() {
   );
 }
 
-function TestPage({ index }) {
+function TestPage() {
   const navigate = useNavigate();
-  const testCase = testCases[index];
-  const [showAudio, setShowAudio] = useState(true);
-  const [showGridAudio, setShowGridAudio] = useState(true);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [selectedQuadrant, setSelectedQuadrant] = useState("1");
+  const [centralSpot, setCentralSpot] = useState("big");
+  const userData = JSON.parse(localStorage.getItem("userData") || "{}");
+
+  // Get unique font sizes from test cases for the dropdown
+  const fontSizeOptions = [...new Set(testCases.map(tc => tc.size))].sort((a, b) => b - a);
 
   useEffect(() => {
     const handleKeyPress = (event) => {
@@ -325,44 +345,89 @@ function TestPage({ index }) {
         return; // Ignore non-arrow key presses
       }
 
-      if (event.key === testCase.direction) {
-        if (index + 1 < testCases.length) {
-          navigate(`/test/${index + 1}`);
+      if (event.key === testCases[currentIndex].direction) {
+        if (currentIndex + 1 < testCases.length) {
+          setCurrentIndex(currentIndex + 1);
+          setSelectedQuadrant(testCases[currentIndex + 1].power_grid);
         } else {
           navigate("/success");
         }
       } else {
-        navigate(`/result/${testCase.power_grid}`);
+        navigate(`/result/${testCases[currentIndex].power_grid}`);
       }
     };
 
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [navigate, testCase, index]);
+  }, [navigate, currentIndex, testCases]);
+
+  // Get grid position (same as COverlay)
+  const getPosition = () => {
+    const positions = {
+      "1": { top: "25%", left: "50%" },    // Top-center
+      "2": { top: "50%", left: "75%" },    // Center-right
+      "3": { top: "75%", left: "50%" },    // Bottom-center
+      "4": { top: "50%", left: "25%" }     // Center-left
+    };
+    return positions[selectedQuadrant] || { top: "50%", left: "50%" };
+  };
+
+  const position = getPosition();
 
   return (
     <div className="test-container">
-      {showAudio && (
-        <AudioPlayer
-          src="/intro.mp3"
-          onEnded={() => setShowAudio(false)}
-        />
-      )}
-      {showGridAudio && (
-        <AudioPlayer
-          src={`/grid${testCase.power_grid}.mp3`}
-          onEnded={() => setShowGridAudio(false)}
-        />
-      )}
-      <h1 className="test-title">PRL Detection</h1>
-      <p className="test-instruction">Press the direction of opening in C using the arrow keys.</p>
-      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-        <img src="/empty_grid.png" alt="Grid" className="test-image" />
-        <COverlay 
-          direction={testCase.direction} 
-          size={testCase.size} 
-          power_grid={testCase.power_grid}
-        />
+      <AppBar 
+        patientName={userData.name || "Unknown"} 
+        onFontSizeChange={() => {}} // Disable font size changes
+        selectedQuadrant={selectedQuadrant}
+        setSelectedQuadrant={setSelectedQuadrant}
+        fontSizeOptions={fontSizeOptions}
+        selectedFontSize={testCases[currentIndex].size}
+        centralSpot={centralSpot}
+        setCentralSpot={setCentralSpot}
+        showCentralSpot={true}
+      />
+      <div style={{ marginTop: '60px' }}>
+        <h1 className="test-title">PRL Detection</h1>
+        <p className="test-instruction">Press the direction of opening in C using the arrow keys.</p>
+        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+          <img src="/empty_grid.png" alt="Grid" className="test-image" />
+          {/* Central spot */}
+          <div 
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: centralSpot === "big" ? '80px' : centralSpot === "medium" ? '60px' : '20px',
+              height: centralSpot === "big" ? '80px' : centralSpot === "medium" ? '60px' : '20px',
+              borderRadius: '50%',
+              backgroundColor: 'black',
+              pointerEvents: 'none',
+            }}
+          />
+          <div 
+            style={{
+              position: 'absolute',
+              top: position.top,
+              left: position.left,
+              transform: `translate(-50%, -50%) rotate(${
+                testCases[currentIndex].direction === "ArrowRight" ? "0deg" :
+                testCases[currentIndex].direction === "ArrowLeft" ? "180deg" :
+                testCases[currentIndex].direction === "ArrowUp" ? "270deg" :
+                "90deg"
+              })`,
+              fontSize: `${testCases[currentIndex].size}px`,
+              fontFamily: 'sans-serif',
+              color: 'black',
+              fontWeight: 'bold',
+              pointerEvents: 'none',
+            }}
+          >
+            C
+          </div>
+        </div>
+        <div style={{marginTop: 20, color: '#888'}}>Test {currentIndex + 1} of {testCases.length}</div>
       </div>
     </div>
   );
@@ -371,15 +436,44 @@ function TestPage({ index }) {
 function ResultPage() {
   const { power_grid } = useParams();
   const navigate = useNavigate();
+  const [showGridAudio, setShowGridAudio] = useState(true);
+  const audioRef = useRef(null);
+
+  // Map the mistaken quadrant to the training quadrant
+  const quadrantMap = { '1': '2', '2': '3', '3': '4', '4': '1' };
+  const trainingQuadrant = quadrantMap[power_grid] || power_grid;
+
+  // Add 1 to power_grid for audio file
+  const audioGrid = (parseInt(power_grid) + 1).toString();
+
+  useEffect(() => {
+    // Preload the audio to reduce delay
+    if (audioRef.current) {
+      audioRef.current.load();
+    }
+  }, []);
 
   const handleEccentricTraining = () => {
-    localStorage.setItem("selectedGrid", power_grid);
+    localStorage.setItem("selectedGrid", trainingQuadrant);
     navigate("/eccentric-training");
   };
 
+  // Also update selectedGrid in localStorage immediately so other pages use the mapped quadrant
+  React.useEffect(() => {
+    localStorage.setItem("selectedGrid", trainingQuadrant);
+  }, [trainingQuadrant]);
+
   return (
     <div className="result-container">
-      <h1>KEEP YOUR VISUAL ATTENTION TO QUADRANT {power_grid} FOR FURTHER TRAINING</h1>
+      {showGridAudio && (
+        // Plays grid-specific audio file based on the power_grid
+        <AudioPlayer
+          src={`/grid${audioGrid}.mp3`}
+          onEnded={() => setShowGridAudio(false)}
+          ref={audioRef}
+        />
+      )}
+      <h1>KEEP YOUR VISUAL ATTENTION TO QUADRANT {trainingQuadrant} FOR FURTHER TRAINING</h1>
       <div style={{ marginTop: "20px" }}>
         <button style={{ marginRight: "10px" }} onClick={() => navigate("/test/0")}>Restart</button>
         <button onClick={handleEccentricTraining}>Go to Eccentric View Training</button>
@@ -390,11 +484,28 @@ function ResultPage() {
 
 function SuccessPage() {
   const navigate = useNavigate();
+  const [showGridAudio, setShowGridAudio] = useState(true);
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    // Preload the audio to reduce delay
+    if (audioRef.current) {
+      audioRef.current.load();
+    }
+  }, []);
 
   return (
     <div className="success-container">
+      {showGridAudio && (
+        // Plays grid4.mp3 audio file for success page
+        <AudioPlayer
+          src="/grid2.mp3"
+          onEnded={() => setShowGridAudio(false)}
+          ref={audioRef}
+        />
+      )}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <h1>You will continue the training in Grid 4.</h1>
+        <h1>You will continue the training in Grid 2.</h1>
         <div style={{ marginTop: "20px" }}>
           <button style={{ marginRight: "10px" }} onClick={() => navigate("/test/0")}>Restart</button>
           <button onClick={() => window.location.href = "/eccentric-training"}>Go to Eccentric View Training</button>
@@ -407,22 +518,22 @@ function SuccessPage() {
 function EccentricViewTraining() {
   const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [showAudio, setShowAudio] = useState(true);
   const [selectedFontSize, setSelectedFontSize] = useState(80);
   const [eccentricTestCases, setEccentricTestCases] = useState(generateEccentricTestCases(80));
   const selectedGrid = localStorage.getItem("selectedGrid") || "4";
   const userData = JSON.parse(localStorage.getItem("userData") || "{}");
-  // New state for stats
   const [runCount, setRunCount] = useState(0);
   const [correctRuns, setCorrectRuns] = useState(0);
   const [mistakeRuns, setMistakeRuns] = useState(0);
   const [testActive, setTestActive] = useState(true);
-
-  // New states for dropdowns
   const [selectedQuadrant, setSelectedQuadrant] = useState(selectedGrid);
-  const [stimulusDuration, setStimulusDuration] = useState('infinite'); // 'infinite', 5, 4, 3, 2, 1
+  const [stimulusDuration, setStimulusDuration] = useState('infinite');
   const [showLetter, setShowLetter] = useState(true);
+  const [centralSpot, setCentralSpot] = useState("big");
   const timerRef = useRef(null);
+
+  // Generate font size options from 80 to 30 in decrements of 10
+  const fontSizeOptions = [80, 70, 60, 50, 40, 30];
 
   useEffect(() => {
     setEccentricTestCases(generateEccentricTestCases(selectedFontSize));
@@ -492,18 +603,31 @@ function EccentricViewTraining() {
         duration={stimulusDuration}
         setDuration={setStimulusDuration}
         showDurationDropdown={true}
+        centralSpot={centralSpot}
+        setCentralSpot={setCentralSpot}
+        showCentralSpot={true}
+        fontSizeOptions={fontSizeOptions}
+        selectedFontSize={selectedFontSize}
       />
       <div style={{ marginTop: '60px' }}>
-        {showAudio && (
-          <AudioPlayer
-            src="/intro.mp3"
-            onEnded={() => setShowAudio(false)}
-          />
-        )}
         <h1 className="test-title">Eccentric View Training</h1>
         <p className="test-instruction">Press the direction of opening in C using the arrow keys.</p>
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
           <img src="/empty_grid.png" alt="Grid" className="test-image" />
+          {/* Central spot */}
+          <div 
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: centralSpot === "big" ? '70px' : centralSpot === "medium" ? '50px' : '20px',
+              height: centralSpot === "big" ? '70px' : centralSpot === "medium" ? '50px' : '20px',
+              borderRadius: '50%',
+              backgroundColor: 'black',
+              pointerEvents: 'none',
+            }}
+          />
           {showLetter && (
             <COverlay 
               direction={eccentricTestCases[currentIndex].direction} 
@@ -531,9 +655,9 @@ function EccentricResultPage() {
   const getPosition = () => {
     const positions = {
       "1": { top: "25%", left: "50%" },    // Top-center
-      "2": { top: "50%", left: "75%" },    // Center-right
+      "2": { top: "50%", left: "58%" },    // Center-right (was 60%)
       "3": { top: "75%", left: "50%" },    // Bottom-center
-      "4": { top: "50%", left: "25%" }     // Center-left
+      "4": { top: "50%", left: "43%" }     // Center-left (was 40%)
     };
     return positions[selectedGrid] || { top: "50%", left: "50%" };
   };
@@ -643,10 +767,51 @@ function ScrollTextTrainingPage() {
   const [selectedQuadrant, setSelectedQuadrant] = React.useState("4");
   const [scrollSpeed, setScrollSpeed] = React.useState("medium");
   const [selectedFontSize, setSelectedFontSize] = React.useState(80);
+  const [position, setPosition] = React.useState(0);
+  const containerRef = React.useRef(null);
+  const textRef = React.useRef(null);
 
-  // Map speed to animation duration
-  const speedMap = { slow: 15, medium: 8, fast: 3 };
-  const animationDuration = speedMap[scrollSpeed] || 8;
+  const text = "Max set off early in the morning, his backpack full of supplies.  " +
+    "He crossed rivers and climbed mountains, determined to find the hidden cave.  " +
+    "After 3 days of searching, he saw the entrance through thick trees.  " +
+    "Inside the cave, he discovered sparkling crystals that lit in the dark.  " +
+    "Suddenly, he heard a noise—it was a bear, guarding the treasure!  " +
+    "Max stayed calm and carefully backed out of the cave with treasure untouched.  " +
+    "He returned home, after having the adventure he'd never forget.  ";
+
+  // Map speed to pixels per frame
+  const speedMap = { slow: 4, medium: 8, fast: 10 };
+  const pixelsPerFrame = speedMap[scrollSpeed] || 4;
+
+  React.useEffect(() => {
+    let animationFrameId;
+    let lastTimestamp;
+
+    const animate = (timestamp) => {
+      if (!lastTimestamp) lastTimestamp = timestamp;
+      const elapsed = timestamp - lastTimestamp;
+
+      if (elapsed > 16) { // approximately 60fps
+        setPosition(prev => {
+          const newPosition = prev - pixelsPerFrame;
+          const containerWidth = containerRef.current?.offsetWidth || 0;
+          const textWidth = textRef.current?.offsetWidth || 0;
+          
+          // Reset position when text is completely off screen
+          if (newPosition < -textWidth) {
+            return containerWidth;
+          }
+          return newPosition;
+        });
+        lastTimestamp = timestamp;
+      }
+
+      animationFrameId = requestAnimationFrame(animate);
+    };
+
+    animationFrameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [pixelsPerFrame]);
 
   // Dot positioning logic
   const getDotStyle = () => {
@@ -693,6 +858,8 @@ function ScrollTextTrainingPage() {
         setScrollSpeed={setScrollSpeed}
         showSpeedDropdown={true}
         fontSizeOptions={[80, 70, 60, 50, 40, 30, 20]}
+        selectedFontSize={selectedFontSize}
+        showCentralSpot={false}
       />
       <div style={{
         width: '100vw',
@@ -703,38 +870,34 @@ function ScrollTextTrainingPage() {
         position: 'relative',
       }}>
         {/* Scrolling text box */}
-        <div style={{
-          width: '50vw',
-          height: selectedFontSize * 2,
-          background: '#5976c9',
-          position: 'relative',
-          overflow: 'hidden',
-          display: 'flex',
-          alignItems: 'center',
-          borderRadius: 4,
-        }}>
+        <div 
+          ref={containerRef}
+          style={{
+            width: '50vw',
+            height: selectedFontSize * 2,
+            background: '#ffe066',
+            position: 'relative',
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            borderRadius: 4,
+          }}
+        >
           <div
+            ref={textRef}
             style={{
               whiteSpace: 'nowrap',
               fontSize: selectedFontSize,
               color: 'black',
               fontWeight: 'bold',
               position: 'absolute',
-              left: 0,
+              left: `${position}px`,
               top: '50%',
               transform: 'translateY(-50%)',
-              animation: `scroll-left-box ${animationDuration}s linear infinite`,
-              willChange: 'transform',
             }}
           >
-            THIS IS A SCROLL TEXT
+            {text}
           </div>
-          <style>{`
-            @keyframes scroll-left-box {
-              0% { left: 100%; }
-              100% { left: -100%; }
-            }
-          `}</style>
         </div>
         {/* Dot, absolutely positioned relative to the parent container */}
         <div
