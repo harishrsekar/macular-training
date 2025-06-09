@@ -767,6 +767,7 @@ function ScrollTextTrainingPage() {
   const [selectedQuadrant, setSelectedQuadrant] = React.useState("4");
   const [scrollSpeed, setScrollSpeed] = React.useState("medium");
   const [selectedFontSize, setSelectedFontSize] = React.useState(80);
+  const [centralSpot, setCentralSpot] = React.useState("big");
   const [position, setPosition] = React.useState(0);
   const containerRef = React.useRef(null);
   const textRef = React.useRef(null);
@@ -780,8 +781,8 @@ function ScrollTextTrainingPage() {
     "He returned home, after having the adventure he'd never forget.  ";
 
   // Map speed to pixels per frame
-  const speedMap = { slow: 4, medium: 8, fast: 10 };
-  const pixelsPerFrame = speedMap[scrollSpeed] || 4;
+  const speedMap = { slow: 2, medium: 3.5, fast: 4.5 };
+  const pixelsPerFrame = speedMap[scrollSpeed] || 2;
 
   React.useEffect(() => {
     let animationFrameId;
@@ -819,25 +820,25 @@ function ScrollTextTrainingPage() {
       case "1": // 20vh from bottom edge, horizontally centered
         return {
           left: '50%',
-          bottom: '20vh',
+          bottom: '30vh',
           top: 'auto',
           transform: 'translateX(-50%)',
         };
       case "2": // 10vw from left edge, vertically centered
         return {
-          left: '10vw',
+          left: '20vw',
           top: '50%',
           transform: 'translateY(-50%)',
         };
       case "3": // 20vh from top edge, horizontally centered
         return {
           left: '50%',
-          top: '20vh',
+          top: '30vh',
           transform: 'translateX(-50%)',
         };
       case "4": // 10vw from right edge, vertically centered
         return {
-          right: '10vw',
+          right: '20vw',
           left: 'auto',
           top: '50%',
           transform: 'translateY(-50%)',
@@ -859,7 +860,9 @@ function ScrollTextTrainingPage() {
         showSpeedDropdown={true}
         fontSizeOptions={[80, 70, 60, 50, 40, 30, 20]}
         selectedFontSize={selectedFontSize}
-        showCentralSpot={false}
+        showCentralSpot={true}
+        centralSpot={centralSpot}
+        setCentralSpot={setCentralSpot}
       />
       <div style={{
         width: '100vw',
@@ -903,8 +906,9 @@ function ScrollTextTrainingPage() {
         <div
           style={{
             position: 'absolute',
-            width: 24,
-            height: 24,
+            // Spot sizes: big = 24px, medium = 18px, small = 12px
+            width: centralSpot === "big" ? '30px' : centralSpot === "medium" ? '24px' : '18px',
+            height: centralSpot === "big" ? '30px' : centralSpot === "medium" ? '24px' : '18px',
             borderRadius: '50%',
             background: 'black',
             ...getDotStyle(),
