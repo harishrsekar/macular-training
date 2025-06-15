@@ -333,6 +333,10 @@ function TestPage() {
   const [selectedQuadrant, setSelectedQuadrant] = useState("1");
   const [centralSpot, setCentralSpot] = useState("big");
   const userData = JSON.parse(localStorage.getItem("userData") || "{}");
+  const [showCorrectAudio, setShowCorrectAudio] = useState(false);
+  const [showWrongAudio, setShowWrongAudio] = useState(false);
+  const correctAudioRef = useRef(null);
+  const wrongAudioRef = useRef(null);
 
   // Get unique font sizes from test cases for the dropdown
   const fontSizeOptions = [...new Set(testCases.map(tc => tc.size))].sort((a, b) => b - a);
@@ -346,14 +350,22 @@ function TestPage() {
       }
 
       if (event.key === testCases[currentIndex].direction) {
-        if (currentIndex + 1 < testCases.length) {
-          setCurrentIndex(currentIndex + 1);
-          setSelectedQuadrant(testCases[currentIndex + 1].power_grid);
-        } else {
-          navigate("/success");
-        }
+        setShowCorrectAudio(true);
+        // Wait for audio to finish before proceeding
+        setTimeout(() => {
+          if (currentIndex + 1 < testCases.length) {
+            setCurrentIndex(currentIndex + 1);
+            setSelectedQuadrant(testCases[currentIndex + 1].power_grid);
+          } else {
+            navigate("/success");
+          }
+        }, 500); // Adjust timing based on audio length
       } else {
-        navigate(`/result/${testCases[currentIndex].power_grid}`);
+        setShowWrongAudio(true);
+        // Wait for 2 seconds before navigating to result page
+        setTimeout(() => {
+          navigate(`/result/${testCases[currentIndex].power_grid}`);
+        }, 1500); // 2 second delay for wrong answer
       }
     };
 
@@ -376,6 +388,20 @@ function TestPage() {
 
   return (
     <div className="test-container">
+      {showCorrectAudio && (
+        <AudioPlayer
+          src="/correct_direction.mp3"
+          onEnded={() => setShowCorrectAudio(false)}
+          ref={correctAudioRef}
+        />
+      )}
+      {showWrongAudio && (
+        <AudioPlayer
+          src="/wrong_direction.mp3"
+          onEnded={() => setShowWrongAudio(false)}
+          ref={wrongAudioRef}
+        />
+      )}
       <AppBar 
         patientName={userData.name || "Unknown"} 
         onFontSizeChange={() => {}} // Disable font size changes
@@ -530,6 +556,10 @@ function EccentricViewTraining() {
   const [stimulusDuration, setStimulusDuration] = useState('infinite');
   const [showLetter, setShowLetter] = useState(true);
   const [centralSpot, setCentralSpot] = useState("big");
+  const [showCorrectAudio, setShowCorrectAudio] = useState(false);
+  const [showWrongAudio, setShowWrongAudio] = useState(false);
+  const correctAudioRef = useRef(null);
+  const wrongAudioRef = useRef(null);
   const timerRef = useRef(null);
 
   // Generate font size options from 80 to 30 in decrements of 10
@@ -558,21 +588,27 @@ function EccentricViewTraining() {
       }
       if (event.key === eccentricTestCases[currentIndex].direction) {
         // Correct key
-        if (eccentricTestCases[currentIndex].size === 10) {
-          setCorrectRuns(prev => prev + 1);
-          setRunCount(prev => prev + 1);
-          resetTest();
-        } else if (currentIndex + 1 < eccentricTestCases.length) {
-          setCurrentIndex(currentIndex + 1);
-        } else {
-          setCorrectRuns(prev => prev + 1);
-          setRunCount(prev => prev + 1);
-          resetTest();
-        }
+        setShowCorrectAudio(true);
+        setTimeout(() => {
+          if (eccentricTestCases[currentIndex].size === 10) {
+            setCorrectRuns(prev => prev + 1);
+            setRunCount(prev => prev + 1);
+            resetTest();
+          } else if (currentIndex + 1 < eccentricTestCases.length) {
+            setCurrentIndex(currentIndex + 1);
+          } else {
+            setCorrectRuns(prev => prev + 1);
+            setRunCount(prev => prev + 1);
+            resetTest();
+          }
+        }, 500); // Adjust timing based on audio length
       } else {
-        setMistakeRuns(prev => prev + 1);
-        setRunCount(prev => prev + 1);
-        resetTest();
+        setShowWrongAudio(true);
+        setTimeout(() => {
+          setMistakeRuns(prev => prev + 1);
+          setRunCount(prev => prev + 1);
+          resetTest();
+        }, 500); // Adjust timing based on audio length
       }
     };
     window.addEventListener("keydown", handleKeyPress);
@@ -595,6 +631,20 @@ function EccentricViewTraining() {
 
   return (
     <div className="test-container">
+      {showCorrectAudio && (
+        <AudioPlayer
+          src="/correct_direction.mp3"
+          onEnded={() => setShowCorrectAudio(false)}
+          ref={correctAudioRef}
+        />
+      )}
+      {showWrongAudio && (
+        <AudioPlayer
+          src="/wrong_direction.mp3"
+          onEnded={() => setShowWrongAudio(false)}
+          ref={wrongAudioRef}
+        />
+      )}
       <AppBar 
         patientName={userData.name || "Unknown"} 
         onFontSizeChange={setSelectedFontSize}
