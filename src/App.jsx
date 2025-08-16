@@ -1,9 +1,26 @@
 import React, { useState, useEffect, useRef } from "react";
 import { BrowserRouter as Router, Routes, Route, useNavigate, useParams } from "react-router-dom";
-import "./styles.css"; 
+import { ref, set } from "firebase/database";
+import { database } from "./firebase";
+import "./styles.css";
+
+// Helper function to get formatted timestamp with IST offset (+5:30)
+const getFormattedTimestamp = () => {
+  const now = new Date();
+  const istOffset = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes in milliseconds
+  const istTime = new Date(now.getTime() + istOffset);
+  
+  const day = String(istTime.getUTCDate()).padStart(2, '0');
+  const month = String(istTime.getUTCMonth() + 1).padStart(2, '0');
+  const year = istTime.getUTCFullYear();
+  const hours = String(istTime.getUTCHours()).padStart(2, '0');
+  const minutes = String(istTime.getUTCMinutes()).padStart(2, '0');
+  
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+}; 
 
 // AppBar component
-function AppBar({ patientName, onFontSizeChange, selectedQuadrant, setSelectedQuadrant, duration, setDuration, showDurationDropdown = false, scrollSpeed, setScrollSpeed, showSpeedDropdown = false, fontSizeOptions, selectedFontSize, centralSpot, setCentralSpot, showCentralSpot = false }) {
+function AppBar({ patientName, onFontSizeChange, selectedQuadrant, setSelectedQuadrant, duration, setDuration, showDurationDropdown = false, scrollSpeed, setScrollSpeed, showSpeedDropdown = false, fontSizeOptions, selectedFontSize, centralSpot, setCentralSpot, showCentralSpot = false, selectedChart, setSelectedChart, showChartDropdown = false, quadrantBlur, setQuadrantBlur, showQuadrantBlurDropdown = false, quadrantBlurDropdownOpen, setQuadrantBlurDropdownOpen, nonIdentifiableQuadrants, setNonIdentifiableQuadrants }) {
   return (
     <div style={{
       position: 'fixed',
@@ -65,6 +82,100 @@ function AppBar({ patientName, onFontSizeChange, selectedQuadrant, setSelectedQu
               <option value="2">2 seconds</option>
               <option value="1">1 second</option>
             </select>
+          </div>
+        )}
+        {showChartDropdown && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <label style={{ color: 'white', marginRight: 4, whiteSpace: 'nowrap' }}>Grid Type:</label>
+            <select
+              value={selectedChart}
+              onChange={e => setSelectedChart(e.target.value)}
+              style={{ padding: '8px', borderRadius: '4px', backgroundColor: '#333', color: 'white', border: '1px solid #555', minWidth: 100 }}
+            >
+              <option value="1">Chart 1</option>
+              <option value="2">Chart 2</option>
+              <option value="3">Chart 3</option>
+              <option value="4">Chart 4</option>
+              <option value="5">Chart 5</option>
+              <option value="6">Chart 6</option>
+              <option value="7">Chart 7</option>
+            </select>
+          </div>
+        )}
+        {showQuadrantBlurDropdown && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <label style={{ color: 'white', marginRight: 4, whiteSpace: 'nowrap' }}>Quadrant Blur:</label>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <button
+                onClick={() => setQuadrantBlurDropdownOpen(!quadrantBlurDropdownOpen)}
+                style={{ 
+                  padding: '8px', 
+                  borderRadius: '4px', 
+                  backgroundColor: '#333', 
+                  color: 'white', 
+                  border: '1px solid #555', 
+                  minWidth: 120,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}
+              >
+                <span>
+                  {quadrantBlur.size === 0 ? 'Select' : 
+                   Array.from(quadrantBlur).sort().map(q => `Q${q}`).join(', ')}
+                </span>
+                <span>{quadrantBlurDropdownOpen ? '▼' : '▶'}</span>
+              </button>
+              {quadrantBlurDropdownOpen && (
+                <div style={{ 
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  backgroundColor: '#333', 
+                  border: '1px solid #555', 
+                  borderRadius: '4px',
+                  padding: '8px',
+                  minWidth: 120,
+                  zIndex: 1001,
+                  marginTop: '2px'
+                }}>
+                  {['1', '2', '3', '4'].map(q => (
+                    <div key={q} style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>
+                      <input
+                        type="checkbox"
+                        id={`quadrant-${q}`}
+                        checked={quadrantBlur.has(q)}
+                        onChange={(e) => {
+                          const newSet = new Set(quadrantBlur);
+                          if (e.target.checked) {
+                            newSet.add(q);
+                          } else {
+                            newSet.delete(q);
+                          }
+                          setQuadrantBlur(newSet);
+                          
+                          // Also sync with nonIdentifiableQuadrants
+                          if (setNonIdentifiableQuadrants) {
+                            const newNonIdentifiableSet = new Set(nonIdentifiableQuadrants || new Set());
+                            if (e.target.checked) {
+                              newNonIdentifiableSet.add(q);
+                            } else {
+                              newNonIdentifiableSet.delete(q);
+                            }
+                            setNonIdentifiableQuadrants(newNonIdentifiableSet);
+                          }
+                        }}
+                        style={{ margin: 0 }}
+                      />
+                      <label htmlFor={`quadrant-${q}`} style={{ color: 'white', fontSize: '12px', margin: 0 }}>
+                        Quadrant {q}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
         {showSpeedDropdown && (
@@ -154,22 +265,34 @@ function VideoPlayer({ src, onEnded, ref }) {
 
 // Define test cases with progressive sizes and cycling directions
 const testCases = [
-  { size: 52, direction: "ArrowRight", power_grid: "1" },
-  { size: 45, direction: "ArrowLeft", power_grid: "2" },
-  { size: 30, direction: "ArrowDown", power_grid: "3" },
-  { size: 26, direction: "ArrowLeft", power_grid: "4" },
-  { size: 23, direction: "ArrowRight", power_grid: "1" },
-  { size: 20, direction: "ArrowDown", power_grid: "2" },
-  { size: 18, direction: "ArrowLeft", power_grid: "3" },
-  { size: 16, direction: "ArrowUp", power_grid: "4" },
-  { size: 14, direction: "ArrowRight", power_grid: "1" },
+  { size: 75, direction: "ArrowRight", power_grid: "1" },
+  { size: 72, direction: "ArrowLeft", power_grid: "2" },
+  { size: 69, direction: "ArrowDown", power_grid: "3" },
+  { size: 66, direction: "ArrowUp", power_grid: "4" },
+  { size: 63, direction: "ArrowRight", power_grid: "1" },
+  { size: 60, direction: "ArrowLeft", power_grid: "2" },
+  { size: 57, direction: "ArrowDown", power_grid: "3" },
+  { size: 54, direction: "ArrowUp", power_grid: "4" },
+  { size: 51, direction: "ArrowRight", power_grid: "1" },
+  { size: 48, direction: "ArrowLeft", power_grid: "2" },
+  { size: 45, direction: "ArrowDown", power_grid: "3" },
+  { size: 42, direction: "ArrowUp", power_grid: "4" },
+  { size: 39, direction: "ArrowRight", power_grid: "1" },
+  { size: 36, direction: "ArrowLeft", power_grid: "2" },
+  { size: 33, direction: "ArrowDown", power_grid: "3" },
+  { size: 30, direction: "ArrowUp", power_grid: "4" },
+  { size: 27, direction: "ArrowRight", power_grid: "1" },
+  { size: 24, direction: "ArrowLeft", power_grid: "2" },
+  { size: 21, direction: "ArrowDown", power_grid: "3" },
+  { size: 18, direction: "ArrowUp", power_grid: "4" },
+  { size: 15, direction: "ArrowRight", power_grid: "1" },
   { size: 12, direction: "ArrowLeft", power_grid: "2" },
-  { size: 10, direction: "ArrowRight", power_grid: "3" },
-  { size: 8, direction: "ArrowDown", power_grid: "4" },
+  { size: 9, direction: "ArrowDown", power_grid: "3" },
+  { size: 8, direction: "ArrowUp", power_grid: "4" },
 ];
 
 // Component to render the C overlay
-function COverlay({ direction, size, power_grid }) {
+function COverlay({ direction, size, power_grid, textColor = 'black' }) {
   const getRotation = () => {
     switch (direction) {
       case "ArrowRight": return "0deg";
@@ -202,7 +325,7 @@ function COverlay({ direction, size, power_grid }) {
         transform: `translate(-50%, -50%) rotate(${getRotation()})`,
         fontSize: `${size}px`,
         fontFamily: 'sans-serif',
-        color: 'black',
+        color: textColor,
         fontWeight: 'bold',
         pointerEvents: 'none',
       }}
@@ -228,6 +351,23 @@ function RegistrationPage() {
   const handleSubmit = (e) => {
     e.preventDefault();
     localStorage.setItem("userData", JSON.stringify(formData)); // Store user data
+    
+    // Write patient registration data to Firebase
+    const registrationRef = ref(database, `patients/${formData.name}/registrationDetails`);
+    set(registrationRef, {
+      name: formData.name,
+      age: formData.age,
+      gender: formData.gender,
+      eye: formData.eye,
+      spectacle: formData.spectacle,
+      bcva: formData.bcva,
+      contact: formData.contact,
+      address: formData.address,
+      registrationDate: getFormattedTimestamp()
+    }).catch((error) => {
+      console.error("Error writing registration data:", error);
+    });
+    
     navigate("/instructions"); // Navigate to instructions page first
   };
 
@@ -332,16 +472,35 @@ function TestPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedQuadrant, setSelectedQuadrant] = useState("1");
   const [centralSpot, setCentralSpot] = useState("big");
+  const [selectedChart, setSelectedChart] = useState("1");
   const userData = JSON.parse(localStorage.getItem("userData") || "{}");
   const [showCorrectAudio, setShowCorrectAudio] = useState(false);
   const [showWrongAudio, setShowWrongAudio] = useState(false);
   const correctAudioRef = useRef(null);
   const wrongAudioRef = useRef(null);
+  
+  // Adaptive testing state
+  const [currentFontSize, setCurrentFontSize] = useState(testCases[0].size);
+  // Track wrong attempts per quadrant and which quadrants are non-identifiable
+  const [quadrantWrongAttempts, setQuadrantWrongAttempts] = useState({ '1': 0, '2': 0, '3': 0, '4': 0 });
+  const [nonIdentifiableQuadrants, setNonIdentifiableQuadrants] = useState(new Set());
+  const [quadrantBlur, setQuadrantBlur] = useState(new Set());
+  const [quadrantBlurDropdownOpen, setQuadrantBlurDropdownOpen] = useState(false);
 
   // Get unique font sizes from test cases for the dropdown
   const fontSizeOptions = [...new Set(testCases.map(tc => tc.size))].sort((a, b) => b - a);
 
   useEffect(() => {
+    const findNextAvailableIndex = (fromIndex) => {
+      for (let i = fromIndex + 1; i < testCases.length; i++) {
+        const q = testCases[i].power_grid;
+        if (!nonIdentifiableQuadrants.has(q)) {
+          return i;
+        }
+      }
+      return -1;
+    };
+
     const handleKeyPress = (event) => {
       const arrowKeys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
 
@@ -353,25 +512,63 @@ function TestPage() {
         setShowCorrectAudio(true);
         // Wait for audio to finish before proceeding
         setTimeout(() => {
-          if (currentIndex + 1 < testCases.length) {
-            setCurrentIndex(currentIndex + 1);
-            setSelectedQuadrant(testCases[currentIndex + 1].power_grid);
+          const nextIdx = findNextAvailableIndex(currentIndex);
+          if (nextIdx !== -1) {
+            setCurrentIndex(nextIdx);
+            setSelectedQuadrant(testCases[nextIdx].power_grid);
+            setCurrentFontSize(testCases[nextIdx].size);
           } else {
             navigate("/success");
           }
         }, 500); // Adjust timing based on audio length
       } else {
         setShowWrongAudio(true);
-        // Wait for 2 seconds before navigating to result page
+        const q = selectedQuadrant;
+        const newCount = (quadrantWrongAttempts[q] || 0) + 1;
+        setQuadrantWrongAttempts(prev => ({ ...prev, [q]: newCount }));
+
+        const justBecameNonIdentifiable = newCount >= 5 && !nonIdentifiableQuadrants.has(q);
+
         setTimeout(() => {
-          navigate(`/result/${testCases[currentIndex].power_grid}`);
-        }, 1500); // 2 second delay for wrong answer
+          if (justBecameNonIdentifiable) {
+            // Mark quadrant as non-identifiable and jump to next available test case
+            setNonIdentifiableQuadrants(prev => new Set(prev).add(q));
+            setQuadrantBlur(prev => new Set(prev).add(q));
+            const newNonIdentifiableSet = new Set([...nonIdentifiableQuadrants, q]);
+            
+                    // If 3 quadrants are non-identifiable, end test and continue in remaining quadrant
+        if (newNonIdentifiableSet.size >= 3) {
+          const remainingQuadrant = ['1', '2', '3', '4'].find(q => !newNonIdentifiableSet.has(q));
+          localStorage.setItem("selectedGrid", remainingQuadrant);
+          
+          // Store test results
+          localStorage.setItem("testResults", JSON.stringify({
+            letterSize: currentFontSize,
+            centralDotSize: centralSpot
+          }));
+          
+          navigate(`/result/${remainingQuadrant}`);
+        } else {
+              const nextIdx = findNextAvailableIndex(currentIndex);
+              if (nextIdx !== -1) {
+                setCurrentIndex(nextIdx);
+                setSelectedQuadrant(testCases[nextIdx].power_grid);
+                setCurrentFontSize(testCases[nextIdx].size);
+              } else {
+                navigate("/success");
+              }
+            }
+          } else {
+            // Increase font size and try again on the same test case
+            setCurrentFontSize(prev => prev + 3);
+          }
+        }, 1500);
       }
     };
 
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [navigate, currentIndex, testCases]);
+  }, [navigate, currentIndex, testCases, selectedQuadrant, quadrantWrongAttempts, nonIdentifiableQuadrants]);
 
   // Get grid position (same as COverlay)
   const getPosition = () => {
@@ -385,6 +582,8 @@ function TestPage() {
   };
 
   const position = getPosition();
+  const isDarkChart = ["3", "4", "7"].includes(selectedChart);
+  const overlayTextColor = isDarkChart ? 'white' : 'black';
 
   return (
     <div className="test-container">
@@ -408,16 +607,61 @@ function TestPage() {
         selectedQuadrant={selectedQuadrant}
         setSelectedQuadrant={setSelectedQuadrant}
         fontSizeOptions={fontSizeOptions}
-        selectedFontSize={testCases[currentIndex].size}
+        selectedFontSize={currentFontSize}
         centralSpot={centralSpot}
         setCentralSpot={setCentralSpot}
         showCentralSpot={true}
+        selectedChart={selectedChart}
+        setSelectedChart={setSelectedChart}
+        showChartDropdown={true}
+        quadrantBlur={quadrantBlur}
+        setQuadrantBlur={setQuadrantBlur}
+        showQuadrantBlurDropdown={true}
+        quadrantBlurDropdownOpen={quadrantBlurDropdownOpen}
+        setQuadrantBlurDropdownOpen={setQuadrantBlurDropdownOpen}
+        nonIdentifiableQuadrants={nonIdentifiableQuadrants}
+        setNonIdentifiableQuadrants={setNonIdentifiableQuadrants}
       />
       <div style={{ marginTop: '60px' }}>
         <h1 className="test-title">PRL Detection</h1>
         <p className="test-instruction">Press the direction of opening in C using the arrow keys.</p>
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-          <img src="/empty_grid.png" alt="Grid" className="test-image" />
+          <img src={`/charts/Chart${selectedChart}.png`} alt="Grid" className="test-image" />
+          {/* Quadrant blur overlays for non-identifiable quadrants */}
+          {Array.from(quadrantBlur).map(quadrant => {
+            const rotations = {
+              '1': '270deg',    // Top-center
+              '2': '0deg',   // Center-right  
+              '3': '90deg',  // Bottom-center
+              '4': '180deg'   // Center-left
+            };
+            
+            const offsets = {
+              '1': '7px',    // Offset down by 5px
+              '2': '0px',    // No offset
+              '3': '-7px',   // Offset up by 5px
+              '4': '0px'     // No offset
+            };
+            
+            return (
+              <img 
+                key={quadrant}
+                src="/charts/quadrant_blur.png" 
+                alt={`Quadrant ${quadrant} Blur`} 
+                className="test-image"
+                style={{
+                  position: 'absolute',
+                  top: offsets[quadrant],
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  pointerEvents: 'none',
+                  transform: `rotate(${rotations[quadrant]})`,
+                  zIndex: 1,
+                }}
+              />
+            );
+          })}
           {/* Central spot */}
           <div 
             style={{
@@ -425,35 +669,47 @@ function TestPage() {
               top: '50%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
-              width: centralSpot === "big" ? '80px' : centralSpot === "medium" ? '60px' : '20px',
-              height: centralSpot === "big" ? '80px' : centralSpot === "medium" ? '60px' : '20px',
+              width: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
+              height: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
               borderRadius: '50%',
-              backgroundColor: 'black',
+              backgroundColor: isDarkChart ? 'white' : 'black',
               pointerEvents: 'none',
             }}
           />
-          <div 
-            style={{
-              position: 'absolute',
-              top: position.top,
-              left: position.left,
-              transform: `translate(-50%, -50%) rotate(${
-                testCases[currentIndex].direction === "ArrowRight" ? "0deg" :
-                testCases[currentIndex].direction === "ArrowLeft" ? "180deg" :
-                testCases[currentIndex].direction === "ArrowUp" ? "270deg" :
-                "90deg"
-              })`,
-              fontSize: `${testCases[currentIndex].size}px`,
-              fontFamily: 'sans-serif',
-              color: 'black',
-              fontWeight: 'bold',
-              pointerEvents: 'none',
-            }}
-          >
-            C
-          </div>
+          {!quadrantBlur.has(selectedQuadrant) && !nonIdentifiableQuadrants.has(selectedQuadrant) && (
+            <div 
+              style={{
+                position: 'absolute',
+                top: position.top,
+                left: position.left,
+                transform: `translate(-50%, -50%) rotate(${
+                  testCases[currentIndex].direction === "ArrowRight" ? "0deg" :
+                  testCases[currentIndex].direction === "ArrowLeft" ? "180deg" :
+                  testCases[currentIndex].direction === "ArrowUp" ? "270deg" :
+                  "90deg"
+                })`,
+                fontSize: `${currentFontSize}px`,
+                fontFamily: 'sans-serif',
+                color: overlayTextColor,
+                fontWeight: 'bold',
+                pointerEvents: 'none',
+                zIndex: 2,
+              }}
+            >
+              C
+            </div>
+          )}
         </div>
-        <div style={{marginTop: 20, color: '#888'}}>Test {currentIndex + 1} of {testCases.length}</div>
+        <div style={{marginTop: 20, color: '#888'}}>
+          Test {currentIndex + 1} of {testCases.length} | 
+          Font Size: {currentFontSize}px | 
+          Wrong Attempts in Quadrant {selectedQuadrant}: {quadrantWrongAttempts[selectedQuadrant] || 0}/5
+          {Array.from(nonIdentifiableQuadrants).length > 0 && (
+            <span style={{ marginLeft: 12 }}>
+              Non identifiable: {Array.from(nonIdentifiableQuadrants).sort().join(', ')}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -481,6 +737,22 @@ function ResultPage() {
 
   const handleEccentricTraining = () => {
     localStorage.setItem("selectedGrid", trainingQuadrant);
+    
+    // Get user data and test results
+    const userData = JSON.parse(localStorage.getItem("userData") || "{}");
+    const testResults = JSON.parse(localStorage.getItem("testResults") || "{}");
+    
+    // Write test results to Firebase
+    const testResultsRef = ref(database, `patients/${userData.name}/testResults`);
+    set(testResultsRef, {
+      trainingQuadrant: trainingQuadrant,
+      letterSize: testResults.letterSize || 0,
+      centralDotSize: testResults.centralDotSize || "big",
+      testEndDate: getFormattedTimestamp()
+    }).catch((error) => {
+      console.error("Error writing test results:", error);
+    });
+    
     navigate("/eccentric-training");
   };
 
@@ -556,11 +828,15 @@ function EccentricViewTraining() {
   const [stimulusDuration, setStimulusDuration] = useState('infinite');
   const [showLetter, setShowLetter] = useState(true);
   const [centralSpot, setCentralSpot] = useState("big");
+  const [selectedChart, setSelectedChart] = useState("1");
   const [showCorrectAudio, setShowCorrectAudio] = useState(false);
   const [showWrongAudio, setShowWrongAudio] = useState(false);
   const correctAudioRef = useRef(null);
   const wrongAudioRef = useRef(null);
   const timerRef = useRef(null);
+  const [quadrantBlur, setQuadrantBlur] = useState(new Set());
+  const [quadrantBlurDropdownOpen, setQuadrantBlurDropdownOpen] = useState(false);
+  const [nonIdentifiableQuadrants, setNonIdentifiableQuadrants] = useState(new Set());
 
   // Generate font size options from 80 to 30 in decrements of 10
   const fontSizeOptions = [80, 70, 60, 50, 40, 30];
@@ -658,12 +934,57 @@ function EccentricViewTraining() {
         showCentralSpot={true}
         fontSizeOptions={fontSizeOptions}
         selectedFontSize={selectedFontSize}
+        quadrantBlur={quadrantBlur}
+        setQuadrantBlur={setQuadrantBlur}
+        showQuadrantBlurDropdown={true}
+        quadrantBlurDropdownOpen={quadrantBlurDropdownOpen}
+        setQuadrantBlurDropdownOpen={setQuadrantBlurDropdownOpen}
+        nonIdentifiableQuadrants={nonIdentifiableQuadrants}
+        setNonIdentifiableQuadrants={setNonIdentifiableQuadrants}
+        selectedChart={selectedChart}
+        setSelectedChart={setSelectedChart}
+        showChartDropdown={true}
       />
       <div style={{ marginTop: '60px' }}>
         <h1 className="test-title">Eccentric View Training</h1>
         <p className="test-instruction">Press the direction of opening in C using the arrow keys.</p>
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-          <img src="/empty_grid.png" alt="Grid" className="test-image" />
+          <img src={`/charts/Chart${selectedChart}.png`} alt="Grid" className="test-image" />
+          {/* Quadrant blur overlays for non-identifiable quadrants */}
+          {Array.from(quadrantBlur).map(quadrant => {
+            const rotations = {
+              '1': '270deg',    // Top-center
+              '2': '0deg',   // Center-right  
+              '3': '90deg',  // Bottom-center
+              '4': '180deg'   // Center-left
+            };
+            
+            const offsets = {
+              '1': '7px',    // Offset down by 5px
+              '2': '0px',    // No offset
+              '3': '-7px',   // Offset up by 5px
+              '4': '0px'     // No offset
+            };
+            
+            return (
+              <img 
+                key={quadrant}
+                src="/charts/quadrant_blur.png" 
+                alt={`Quadrant ${quadrant} Blur`} 
+                className="test-image"
+                style={{
+                  position: 'absolute',
+                  top: offsets[quadrant],
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  pointerEvents: 'none',
+                  transform: `rotate(${rotations[quadrant]})`,
+                  zIndex: 1,
+                }}
+              />
+            );
+          })}
           {/* Central spot */}
           <div 
             style={{
@@ -671,18 +992,19 @@ function EccentricViewTraining() {
               top: '50%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
-              width: centralSpot === "big" ? '70px' : centralSpot === "medium" ? '50px' : '20px',
-              height: centralSpot === "big" ? '70px' : centralSpot === "medium" ? '50px' : '20px',
+              width: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
+              height: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
               borderRadius: '50%',
-              backgroundColor: 'black',
+              backgroundColor: ["3","4","7"].includes(selectedChart) ? 'white' : 'black',
               pointerEvents: 'none',
             }}
           />
-          {showLetter && (
+          {showLetter && !quadrantBlur.has(selectedQuadrant) && !nonIdentifiableQuadrants.has(selectedQuadrant) && (
             <COverlay 
               direction={eccentricTestCases[currentIndex].direction} 
               size={eccentricTestCases[currentIndex].size} 
               power_grid={selectedQuadrant}
+              textColor={["3","4","7"].includes(selectedChart) ? 'white' : 'black'}
             />
           )}
         </div>
@@ -695,6 +1017,7 @@ function EccentricViewTraining() {
 function EccentricResultPage() {
   const navigate = useNavigate();
   const selectedGrid = localStorage.getItem("selectedGrid") || "4";
+  const [selectedChart, setSelectedChart] = useState("1");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedFontSize, setSelectedFontSize] = useState(80);
   const [showLetter, setShowLetter] = useState('C'); // 'C' or 'E'
@@ -749,12 +1072,15 @@ function EccentricResultPage() {
       <AppBar 
         patientName={userData.name || "Unknown"} 
         onFontSizeChange={setSelectedFontSize}
+        selectedChart={selectedChart}
+        setSelectedChart={setSelectedChart}
+        showChartDropdown={true}
       />
       <div style={{ marginTop: '60px' }}>
         <h1 className="test-title">Eccentric View Training</h1>
         <p className="test-instruction">Press the direction of opening in {showLetter} using the arrow keys.</p>
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-          <img src="/empty_grid.png" alt="Grid" className="test-image" />
+          <img src={`/charts/Chart${selectedChart}.png`} alt="Grid" className="test-image" />
           <div 
             style={{
               position: 'absolute',
@@ -768,7 +1094,7 @@ function EccentricResultPage() {
               })`,
               fontSize: `${selectedFontSize}px`,
               fontFamily: 'sans-serif',
-              color: 'black',
+              color: ["3","4","7"].includes(selectedChart) ? 'white' : 'black',
               fontWeight: 'bold'
             }}
           >
@@ -799,6 +1125,21 @@ function EccentricSuccessPage() {
 function EccentricStatsPage() {
   const navigate = useNavigate();
   const stats = JSON.parse(localStorage.getItem("eccentricStats") || "{\"correctRuns\":0,\"mistakeRuns\":0}");
+  const userData = JSON.parse(localStorage.getItem("userData") || "{}");
+  const testResults = JSON.parse(localStorage.getItem("testResults") || "{}");
+  const selectedGrid = localStorage.getItem("selectedGrid") || "4";
+  
+  // Write training results to Firebase
+  useEffect(() => {
+    const trainingResultsRef = ref(database, `patients/${userData.name}/trainingResults`);
+    set(trainingResultsRef, {
+      evtCorrectResponses: stats.correctRuns,
+      evtWrongResponses: stats.mistakeRuns,
+      trainingEndDate: getFormattedTimestamp()
+    }).catch((error) => {
+      console.error("Error writing training results:", error);
+    });
+  }, [userData, stats]);
   return (
     <div className="result-container">
       <h1>Eccentric Training Results</h1>
@@ -956,9 +1297,9 @@ function ScrollTextTrainingPage() {
         <div
           style={{
             position: 'absolute',
-            // Spot sizes: big = 24px, medium = 18px, small = 12px
-            width: centralSpot === "big" ? '30px' : centralSpot === "medium" ? '24px' : '18px',
-            height: centralSpot === "big" ? '30px' : centralSpot === "medium" ? '24px' : '18px',
+            // Spot sizes: big = 100px, medium = 85px, small = 60px
+            width: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
+            height: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
             borderRadius: '50%',
             background: 'black',
             ...getDotStyle(),
