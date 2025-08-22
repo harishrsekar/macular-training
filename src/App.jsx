@@ -67,6 +67,7 @@ function AppBar({ patientName, onFontSizeChange, selectedQuadrant, setSelectedQu
             <option value="4">4</option>
           </select>
         </div>
+        
         {showDurationDropdown && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <label style={{ color: 'white', marginRight: 4, whiteSpace: 'nowrap' }}>Duration:</label>
