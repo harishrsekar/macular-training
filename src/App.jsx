@@ -645,19 +645,17 @@ function TestPage() {
             };
             
             return (
-              <img 
+              <div
                 key={quadrant}
-                src="/charts/quadrant_blur.png" 
-                alt={`Quadrant ${quadrant} Blur`} 
-                className="test-image"
                 style={{
-                  position: 'absolute',
-                  top: offsets[quadrant],
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  pointerEvents: 'none',
+                  position: "absolute",
+                  inset: 0, // shorthand for top:0, right:0, bottom:0, left:0
+                  backgroundImage: `url("/charts/quadrant_blur.png")`,
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "center",
+                  backgroundSize: "contain",
                   transform: `rotate(${rotations[quadrant]})`,
+                  pointerEvents: "none",
                   zIndex: 1,
                 }}
               />
