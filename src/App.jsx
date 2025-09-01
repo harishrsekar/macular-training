@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { BrowserRouter as Router, Routes, Route, useNavigate, useParams } from "react-router-dom";
-import { ref, set } from "firebase/database";
+import { BrowserRouter as Router, Routes, Route, useNavigate, useParams, useLocation } from "react-router-dom";
+import { ref, set, get } from "firebase/database";
 import { database } from "./firebase";
 import "./styles.css";
 
@@ -228,6 +228,27 @@ function generateEccentricTestCases(startingSize) {
   return testCases;
 }
 
+// Function to generate randomized PRL detection test cases
+function generatePRLTestCases() {
+  const directions = ["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"];
+  const testCases = [];
+  
+  // Generate 24 test cases with decreasing font sizes
+  for (let i = 0; i < 24; i++) {
+    const size = 75 - (i * 3); // Start at 75px, decrease by 3 each time
+    const randomDirection = directions[Math.floor(Math.random() * directions.length)];
+    const cyclicQuadrant = (i % 4) + 1; // Cycles through 1, 2, 3, 4, 1, 2, 3, 4...
+    
+    testCases.push({ 
+      size: Math.max(size, 8), // Ensure minimum size of 8px
+      direction: randomDirection, 
+      power_grid: cyclicQuadrant.toString()
+    });
+  }
+  
+  return testCases;
+}
+
 // Audio component to handle audio playback
 function AudioPlayer({ src, onEnded, ref }) {
   const audioRef = useRef(null);
@@ -264,33 +285,8 @@ function VideoPlayer({ src, onEnded, ref }) {
   return <video ref={videoRef} src={src} onEnded={onEnded} preload="auto" />;
 }
 
-// Define test cases with progressive sizes and cycling directions
-const testCases = [
-  { size: 75, direction: "ArrowRight", power_grid: "1" },
-  { size: 72, direction: "ArrowLeft", power_grid: "2" },
-  { size: 69, direction: "ArrowDown", power_grid: "3" },
-  { size: 66, direction: "ArrowUp", power_grid: "4" },
-  { size: 63, direction: "ArrowRight", power_grid: "1" },
-  { size: 60, direction: "ArrowLeft", power_grid: "2" },
-  { size: 57, direction: "ArrowDown", power_grid: "3" },
-  { size: 54, direction: "ArrowUp", power_grid: "4" },
-  { size: 51, direction: "ArrowRight", power_grid: "1" },
-  { size: 48, direction: "ArrowLeft", power_grid: "2" },
-  { size: 45, direction: "ArrowDown", power_grid: "3" },
-  { size: 42, direction: "ArrowUp", power_grid: "4" },
-  { size: 39, direction: "ArrowRight", power_grid: "1" },
-  { size: 36, direction: "ArrowLeft", power_grid: "2" },
-  { size: 33, direction: "ArrowDown", power_grid: "3" },
-  { size: 30, direction: "ArrowUp", power_grid: "4" },
-  { size: 27, direction: "ArrowRight", power_grid: "1" },
-  { size: 24, direction: "ArrowLeft", power_grid: "2" },
-  { size: 21, direction: "ArrowDown", power_grid: "3" },
-  { size: 18, direction: "ArrowUp", power_grid: "4" },
-  { size: 15, direction: "ArrowRight", power_grid: "1" },
-  { size: 12, direction: "ArrowLeft", power_grid: "2" },
-  { size: 9, direction: "ArrowDown", power_grid: "3" },
-  { size: 8, direction: "ArrowUp", power_grid: "4" },
-];
+// Generate randomized PRL detection test cases
+const testCases = generatePRLTestCases();
 
 // Component to render the C overlay
 function COverlay({ direction, size, power_grid, textColor = 'black' }) {
@@ -348,28 +344,66 @@ function RegistrationPage() {
     contact: "",
     address: ""
   });
+  const [isChecking, setIsChecking] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    localStorage.setItem("userData", JSON.stringify(formData)); // Store user data
+    setIsChecking(true);
     
-    // Write patient registration data to Firebase
-    const registrationRef = ref(database, `patients/${formData.name}/registrationDetails`);
-    set(registrationRef, {
-      name: formData.name,
-      age: formData.age,
-      gender: formData.gender,
-      eye: formData.eye,
-      spectacle: formData.spectacle,
-      bcva: formData.bcva,
-      contact: formData.contact,
-      address: formData.address,
-      registrationDate: getFormattedTimestamp()
-    }).catch((error) => {
-      console.error("Error writing registration data:", error);
-    });
-    
-    navigate("/instructions"); // Navigate to instructions page first
+    try {
+      // Get all patients to check for case-insensitive name match
+      const patientsRef = ref(database, 'patients');
+      const snapshot = await get(patientsRef);
+      
+      let existingPatientKey = null;
+      let existingPatientData = null;
+      
+      if (snapshot.exists()) {
+        const patients = snapshot.val();
+        // Check for case-insensitive name match
+        existingPatientKey = Object.keys(patients).find(
+          key => key.toLowerCase() === formData.name.toLowerCase()
+        );
+        
+        if (existingPatientKey) {
+          existingPatientData = patients[existingPatientKey];
+        }
+      }
+      
+      if (existingPatientData) {
+        // Patient exists, navigate to existing results page
+        // Use the original case from database for consistency
+        const updatedFormData = { ...formData, name: existingPatientKey };
+        localStorage.setItem("userData", JSON.stringify(updatedFormData));
+        navigate("/existing-patient", { state: { patientData: existingPatientData } });
+      } else {
+        // New patient, proceed with registration
+        localStorage.setItem("userData", JSON.stringify(formData));
+        
+        // Write patient registration data to Firebase
+        const registrationRef = ref(database, `patients/${formData.name}/registrationDetails`);
+        await set(registrationRef, {
+          name: formData.name,
+          age: formData.age,
+          gender: formData.gender,
+          eye: formData.eye,
+          spectacle: formData.spectacle,
+          bcva: formData.bcva,
+          contact: formData.contact,
+          address: formData.address,
+          registrationDate: getFormattedTimestamp()
+        });
+        
+        navigate("/instructions");
+      }
+    } catch (error) {
+      console.error("Error checking patient data:", error);
+      // Fallback to normal registration flow
+      localStorage.setItem("userData", JSON.stringify(formData));
+      navigate("/instructions");
+    } finally {
+      setIsChecking(false);
+    }
   };
 
   return (
@@ -411,8 +445,109 @@ function RegistrationPage() {
           <label>Address:</label>
           <textarea required value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })}></textarea>
 
-          <button type="submit">Start Test</button>
+          <button type="submit" disabled={isChecking}>
+            {isChecking ? "Checking..." : "Start Test"}
+          </button>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function ExistingPatientPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const patientData = location.state?.patientData || {};
+  const userData = JSON.parse(localStorage.getItem("userData") || "{}");
+
+  const handleRetakePRL = () => {
+    navigate("/instructions");
+  };
+
+  const handleContinueTraining = () => {
+    // Check if there are existing test results to determine where to continue
+    if (patientData.testResults) {
+      // If there are test results, continue to eccentric training
+      localStorage.setItem("selectedGrid", patientData.testResults.trainingQuadrant || "4");
+      navigate("/eccentric-training");
+    } else {
+      // If no test results, start from PRL detection
+      navigate("/instructions");
+    }
+  };
+
+  return (
+    <div className="centered-page">
+      <div className="form-container" style={{ maxWidth: '800px' }}>
+        <h1>Existing Patient Found</h1>
+        <p style={{ fontSize: '18px', marginBottom: '20px' }}>
+          There is an existing entry under the name: <strong>{userData.name}</strong>
+        </p>
+        
+        {patientData.registrationDetails && (
+          <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
+            <h3>Registration Details:</h3>
+            <p><strong>Age:</strong> {patientData.registrationDetails.age}</p>
+            <p><strong>Gender:</strong> {patientData.registrationDetails.gender}</p>
+            <p><strong>Eye:</strong> {patientData.registrationDetails.eye}</p>
+            <p><strong>Spectacle:</strong> {patientData.registrationDetails.spectacle}</p>
+            {patientData.registrationDetails.bcva && (
+              <p><strong>BCVA:</strong> {patientData.registrationDetails.bcva}</p>
+            )}
+            <p><strong>Contact:</strong> {patientData.registrationDetails.contact}</p>
+            <p><strong>Registration Date:</strong> {patientData.registrationDetails.registrationDate}</p>
+          </div>
+        )}
+
+        {patientData.testResults && (
+          <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#e8f5e8', borderRadius: '8px' }}>
+            <h3>PRL Detection Results:</h3>
+            <p><strong>Training Quadrant:</strong> {patientData.testResults.trainingQuadrant}</p>
+            <p><strong>Letter Size:</strong> {patientData.testResults.letterSize}px</p>
+            <p><strong>Central Dot Size:</strong> {patientData.testResults.centralDotSize}</p>
+            <p><strong>Test End Date:</strong> {patientData.testResults.testEndDate}</p>
+          </div>
+        )}
+
+        {patientData.trainingResults && (
+          <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#e8f4fd', borderRadius: '8px' }}>
+            <h3>Training Results:</h3>
+            <p><strong>Correct Responses:</strong> {patientData.trainingResults.evtCorrectResponses}</p>
+            <p><strong>Wrong Responses:</strong> {patientData.trainingResults.evtWrongResponses}</p>
+            <p><strong>Training End Date:</strong> {patientData.trainingResults.trainingEndDate}</p>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', marginTop: '30px' }}>
+          <button 
+            onClick={handleRetakePRL}
+            style={{ 
+              padding: '12px 24px', 
+              fontSize: '16px', 
+              backgroundColor: '#007bff', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '6px',
+              cursor: 'pointer'
+            }}
+          >
+            Attempt PRL Detection Again
+          </button>
+          <button 
+            onClick={handleContinueTraining}
+            style={{ 
+              padding: '12px 24px', 
+              fontSize: '16px', 
+              backgroundColor: '#28a745', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '6px',
+              cursor: 'pointer'
+            }}
+          >
+            Continue with Training
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1315,6 +1450,7 @@ export default function App() {
     <Router>
       <Routes>
         <Route path="/" element={<RegistrationPage />} />
+        <Route path="/existing-patient" element={<ExistingPatientPage />} />
         <Route path="/instructions" element={<InstructionsPage />} />
         <Route path="/test/:index" element={<TestPageWrapper />} />
         <Route path="/result/:power_grid" element={<ResultPage />} />
