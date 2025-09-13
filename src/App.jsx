@@ -20,7 +20,7 @@ const getFormattedTimestamp = () => {
 }; 
 
 // AppBar component
-function AppBar({ patientName, onFontSizeChange, selectedQuadrant, setSelectedQuadrant, duration, setDuration, showDurationDropdown = false, scrollSpeed, setScrollSpeed, showSpeedDropdown = false, fontSizeOptions, selectedFontSize, centralSpot, setCentralSpot, showCentralSpot = false, selectedChart, setSelectedChart, showChartDropdown = false, quadrantBlur, setQuadrantBlur, showQuadrantBlurDropdown = false, quadrantBlurDropdownOpen, setQuadrantBlurDropdownOpen, nonIdentifiableQuadrants, setNonIdentifiableQuadrants }) {
+function AppBar({ patientName, onFontSizeChange, selectedQuadrant, setSelectedQuadrant, duration, setDuration, showDurationDropdown = false, scrollSpeed, setScrollSpeed, showSpeedDropdown = false, fontSizeOptions, selectedFontSize, centralSpot, setCentralSpot, showCentralSpot = false, selectedChart, setSelectedChart, showChartDropdown = false, quadrantBlur, setQuadrantBlur, showQuadrantBlurDropdown = false, quadrantBlurDropdownOpen, setQuadrantBlurDropdownOpen, nonIdentifiableQuadrants, setNonIdentifiableQuadrants, showPRLScrollButton = false, onGoToPRLScroll }) {
   return (
     <div style={{
       position: 'fixed',
@@ -39,7 +39,8 @@ function AppBar({ patientName, onFontSizeChange, selectedQuadrant, setSelectedQu
       <div style={{ color: 'white', fontSize: '18px', whiteSpace: 'nowrap' }}>
         Name: {patientName}
       </div>
-      <div style={{ display: 'flex', gap: '18px', alignItems: 'center', flexWrap: 'nowrap' }}>
+      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'nowrap' }}>
+        <div style={{ display: 'flex', gap: '18px', alignItems: 'center', flexWrap: 'nowrap' }}>
         {showCentralSpot && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <label style={{ color: 'white', marginRight: 4, whiteSpace: 'nowrap' }}>Central Spot:</label>
@@ -209,6 +210,24 @@ function AppBar({ patientName, onFontSizeChange, selectedQuadrant, setSelectedQu
             <option key={size} value={size}>{size}</option>
           ))}
         </select>
+        </div>
+        {showPRLScrollButton && (
+          <button
+            onClick={onGoToPRLScroll}
+            style={{
+              marginLeft: 12,
+              padding: '8px 12px',
+              borderRadius: '4px',
+              backgroundColor: '#0066cc',
+              color: 'white',
+              border: '1px solid #3385ff',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            Go to PRL Scroll test
+          </button>
+        )}
       </div>
     </div>
   );
@@ -626,6 +645,25 @@ function TestPage() {
   // Get unique font sizes from test cases for the dropdown
   const fontSizeOptions = [...new Set(testCases.map(tc => tc.size))].sort((a, b) => b - a);
 
+  // Restore PRL detection state if returning from PRL Scroll Test
+  useEffect(() => {
+    const saved = localStorage.getItem('prlDetectionState');
+    if (saved) {
+      try {
+        const s = JSON.parse(saved);
+        if (typeof s.currentIndex === 'number') setCurrentIndex(s.currentIndex);
+        if (s.selectedQuadrant) setSelectedQuadrant(s.selectedQuadrant);
+        if (s.centralSpot) setCentralSpot(s.centralSpot);
+        if (s.selectedChart) setSelectedChart(s.selectedChart);
+        if (typeof s.currentFontSize === 'number') setCurrentFontSize(s.currentFontSize);
+        if (s.quadrantWrongAttempts) setQuadrantWrongAttempts(s.quadrantWrongAttempts);
+        if (Array.isArray(s.nonIdentifiableQuadrants)) setNonIdentifiableQuadrants(new Set(s.nonIdentifiableQuadrants));
+        if (Array.isArray(s.quadrantBlur)) setQuadrantBlur(new Set(s.quadrantBlur));
+      } catch {}
+      localStorage.removeItem('prlDetectionState');
+    }
+  }, []);
+
   useEffect(() => {
     const findNextAvailableIndex = (fromIndex) => {
       for (let i = fromIndex + 1; i < testCases.length; i++) {
@@ -718,8 +756,8 @@ function TestPage() {
   };
 
   const position = getPosition();
-  const isDarkChart = ["3", "4", "7"].includes(selectedChart);
-  const overlayTextColor = isDarkChart ? 'white' : 'black';
+  const isDarkChart = ["3", "4", "5", "7"].includes(selectedChart);
+  const overlayTextColor = ["3", "4", "5", "7"].includes(selectedChart) ? 'white' : 'black';
 
   return (
     <div className="test-container">
@@ -757,6 +795,22 @@ function TestPage() {
         setQuadrantBlurDropdownOpen={setQuadrantBlurDropdownOpen}
         nonIdentifiableQuadrants={nonIdentifiableQuadrants}
         setNonIdentifiableQuadrants={setNonIdentifiableQuadrants}
+        showPRLScrollButton={true}
+        onGoToPRLScroll={() => {
+          // Save PRL detection state before navigating
+          const stateToSave = {
+            currentIndex,
+            selectedQuadrant,
+            centralSpot,
+            selectedChart,
+            currentFontSize,
+            quadrantWrongAttempts,
+            nonIdentifiableQuadrants: Array.from(nonIdentifiableQuadrants),
+            quadrantBlur: Array.from(quadrantBlur)
+          };
+          localStorage.setItem('prlDetectionState', JSON.stringify(stateToSave));
+          navigate('/prl-scroll-test');
+        }}
       />
       <div style={{ marginTop: '60px' }}>
         <h1 className="test-title">PRL Detection</h1>
@@ -1129,7 +1183,8 @@ function EccentricViewTraining() {
               width: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
               height: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
               borderRadius: '50%',
-              backgroundColor: ["3","4","7"].includes(selectedChart) ? 'white' : 'black',
+              backgroundColor: ["3","4","5","7"].includes(selectedChart) ? 'white' : 'black',
+              
               pointerEvents: 'none',
             }}
           />
@@ -1138,7 +1193,7 @@ function EccentricViewTraining() {
               direction={eccentricTestCases[currentIndex].direction} 
               size={eccentricTestCases[currentIndex].size} 
               power_grid={selectedQuadrant}
-              textColor={["3","4","7"].includes(selectedChart) ? 'white' : 'black'}
+              textColor={["3","4","5","7"].includes(selectedChart) ? 'white' : 'black'}
             />
           )}
         </div>
@@ -1228,7 +1283,7 @@ function EccentricResultPage() {
               })`,
               fontSize: `${selectedFontSize}px`,
               fontFamily: 'sans-serif',
-              color: ["3","4","7"].includes(selectedChart) ? 'white' : 'black',
+              color: ["3","4","5","7"].includes(selectedChart) ? 'white' : 'black',
               fontWeight: 'bold'
             }}
           >
@@ -1445,6 +1500,159 @@ function ScrollTextTrainingPage() {
   );
 }
 
+// PRL Scroll Test page (replica of ScrollTextTrainingPage with resume button)
+function PRLScrollTestPage() {
+  const navigate = useNavigate();
+  const userData = JSON.parse(localStorage.getItem("userData") || "{}");
+  const [selectedQuadrant, setSelectedQuadrant] = React.useState("4");
+  const [scrollSpeed, setScrollSpeed] = React.useState("medium");
+  const [selectedFontSize, setSelectedFontSize] = React.useState(80);
+  const [centralSpot, setCentralSpot] = React.useState("big");
+  const [position, setPosition] = React.useState(0);
+  const containerRef = React.useRef(null);
+  const textRef = React.useRef(null);
+
+  const text = "Max set off early in the morning, his backpack full of supplies.  " +
+    "He crossed rivers and climbed mountains, determined to find the hidden cave.  " +
+    "After 3 days of searching, he saw the entrance through thick trees.  " +
+    "Inside the cave, he discovered sparkling crystals that lit in the dark.  " +
+    "Suddenly, he heard a noise—it was a bear, guarding the treasure!  " +
+    "Max stayed calm and carefully backed out of the cave with treasure untouched.  " +
+    "He returned home, after having the adventure he'd never forget.  ";
+
+  const speedMap = { slow: 2, medium: 3.5, fast: 4.5 };
+  const pixelsPerFrame = speedMap[scrollSpeed] || 2;
+
+  React.useEffect(() => {
+    let animationFrameId;
+    let lastTimestamp;
+    const animate = (timestamp) => {
+      if (!lastTimestamp) lastTimestamp = timestamp;
+      const elapsed = timestamp - lastTimestamp;
+      if (elapsed > 16) {
+        setPosition(prev => {
+          const newPosition = prev - pixelsPerFrame;
+          const containerWidth = containerRef.current?.offsetWidth || 0;
+          const textWidth = textRef.current?.offsetWidth || 0;
+          if (newPosition < -textWidth) {
+            return containerWidth;
+          }
+          return newPosition;
+        });
+        lastTimestamp = timestamp;
+      }
+      animationFrameId = requestAnimationFrame(animate);
+    };
+    animationFrameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [pixelsPerFrame]);
+
+  const getDotStyle = () => {
+    switch (selectedQuadrant) {
+      case "1":
+        return { left: '50%', bottom: '30vh', top: 'auto', transform: 'translateX(-50%)' };
+      case "2":
+        return { left: '20vw', top: '50%', transform: 'translateY(-50%)' };
+      case "3":
+        return { left: '50%', top: '30vh', transform: 'translateX(-50%)' };
+      case "4":
+        return { right: '20vw', left: 'auto', top: '50%', transform: 'translateY(-50%)' };
+      default:
+        return { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' };
+    }
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#e5e5e5' }}>
+      <AppBar
+        patientName={userData.name || "Unknown"}
+        onFontSizeChange={setSelectedFontSize}
+        selectedQuadrant={selectedQuadrant}
+        setSelectedQuadrant={setSelectedQuadrant}
+        scrollSpeed={scrollSpeed}
+        setScrollSpeed={setScrollSpeed}
+        showSpeedDropdown={true}
+        fontSizeOptions={[80, 70, 60, 50, 40, 30, 20]}
+        selectedFontSize={selectedFontSize}
+        showCentralSpot={true}
+        centralSpot={centralSpot}
+        setCentralSpot={setCentralSpot}
+      />
+      <div style={{
+        width: '100vw',
+        height: 'calc(100vh - 60px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+      }}>
+        <div 
+          ref={containerRef}
+          style={{
+            width: '50vw',
+            height: selectedFontSize * 2,
+            background: '#ffe066',
+            position: 'relative',
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            borderRadius: 4,
+          }}
+        >
+          <div
+            ref={textRef}
+            style={{
+              whiteSpace: 'nowrap',
+              fontSize: selectedFontSize,
+              color: 'black',
+              fontWeight: 'bold',
+              position: 'absolute',
+              left: `${position}px`,
+              top: '50%',
+              transform: 'translateY(-50%)',
+            }}
+          >
+            {/* Title adjusted for PRL Scroll Test */}
+            PRL scroll test — {text}
+          </div>
+        </div>
+        {/* Dot */}
+        <div
+          style={{
+            position: 'absolute',
+            width: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
+            height: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
+            borderRadius: '50%',
+            background: 'black',
+            ...getDotStyle(),
+            zIndex: 2,
+          }}
+        />
+        {/* Resume button */}
+        <button
+          onClick={() => {
+            navigate('/test/0');
+          }}
+          style={{
+            position: 'absolute',
+            bottom: 24,
+            right: 24,
+            backgroundColor: '#1976d2',
+            color: 'white',
+            border: 'none',
+            padding: '10px 16px',
+            borderRadius: 6,
+            cursor: 'pointer',
+            zIndex: 3
+          }}
+        >
+          Go back to PRL Detection
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <Router>
@@ -1460,6 +1668,7 @@ export default function App() {
         <Route path="/eccentric-success" element={<EccentricSuccessPage />} />
         <Route path="/eccentric-stats" element={<EccentricStatsPage />} />
         <Route path="/scroll-text-training" element={<ScrollTextTrainingPage />} />
+        <Route path="/prl-scroll-test" element={<PRLScrollTestPage />} />
       </Routes>
     </Router>
   );
