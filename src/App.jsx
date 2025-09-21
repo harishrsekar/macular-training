@@ -641,6 +641,8 @@ function TestPage() {
   const [nonIdentifiableQuadrants, setNonIdentifiableQuadrants] = useState(new Set());
   const [quadrantBlur, setQuadrantBlur] = useState(new Set());
   const [quadrantBlurDropdownOpen, setQuadrantBlurDropdownOpen] = useState(false);
+  // Track current direction for wrong responses - changes with each wrong attempt
+  const [currentDirection, setCurrentDirection] = useState(testCases[0].direction);
 
   // Get unique font sizes from test cases for the dropdown
   const fontSizeOptions = [...new Set(testCases.map(tc => tc.size))].sort((a, b) => b - a);
@@ -659,6 +661,7 @@ function TestPage() {
         if (s.quadrantWrongAttempts) setQuadrantWrongAttempts(s.quadrantWrongAttempts);
         if (Array.isArray(s.nonIdentifiableQuadrants)) setNonIdentifiableQuadrants(new Set(s.nonIdentifiableQuadrants));
         if (Array.isArray(s.quadrantBlur)) setQuadrantBlur(new Set(s.quadrantBlur));
+        if (s.currentDirection) setCurrentDirection(s.currentDirection);
       } catch {}
       localStorage.removeItem('prlDetectionState');
     }
@@ -682,7 +685,7 @@ function TestPage() {
         return; // Ignore non-arrow key presses
       }
 
-      if (event.key === testCases[currentIndex].direction) {
+      if (event.key === currentDirection) {
         setShowCorrectAudio(true);
         // Wait for audio to finish before proceeding
         setTimeout(() => {
@@ -691,6 +694,7 @@ function TestPage() {
             setCurrentIndex(nextIdx);
             setSelectedQuadrant(testCases[nextIdx].power_grid);
             setCurrentFontSize(testCases[nextIdx].size);
+            setCurrentDirection(testCases[nextIdx].direction);
           } else {
             navigate("/success");
           }
@@ -703,46 +707,54 @@ function TestPage() {
 
         const justBecameNonIdentifiable = newCount >= 5 && !nonIdentifiableQuadrants.has(q);
 
-        setTimeout(() => {
-          if (justBecameNonIdentifiable) {
-            // Mark quadrant as non-identifiable and jump to next available test case
-            setNonIdentifiableQuadrants(prev => new Set(prev).add(q));
-            setQuadrantBlur(prev => new Set(prev).add(q));
-            const newNonIdentifiableSet = new Set([...nonIdentifiableQuadrants, q]);
+        // Immediately update direction and size for wrong response, then handle navigation logic
+        if (justBecameNonIdentifiable) {
+          // Mark quadrant as non-identifiable and jump to next available test case
+          setNonIdentifiableQuadrants(prev => new Set(prev).add(q));
+          setQuadrantBlur(prev => new Set(prev).add(q));
+          const newNonIdentifiableSet = new Set([...nonIdentifiableQuadrants, q]);
+          
+          // If 3 quadrants are non-identifiable, end test and continue in remaining quadrant
+          if (newNonIdentifiableSet.size >= 3) {
+            const remainingQuadrant = ['1', '2', '3', '4'].find(q => !newNonIdentifiableSet.has(q));
+            localStorage.setItem("selectedGrid", remainingQuadrant);
             
-                    // If 3 quadrants are non-identifiable, end test and continue in remaining quadrant
-        if (newNonIdentifiableSet.size >= 3) {
-          const remainingQuadrant = ['1', '2', '3', '4'].find(q => !newNonIdentifiableSet.has(q));
-          localStorage.setItem("selectedGrid", remainingQuadrant);
-          
-          // Store test results
-          localStorage.setItem("testResults", JSON.stringify({
-            letterSize: currentFontSize,
-            centralDotSize: centralSpot
-          }));
-          
-          navigate(`/result/${remainingQuadrant}`);
-        } else {
+            // Store test results
+            localStorage.setItem("testResults", JSON.stringify({
+              letterSize: currentFontSize,
+              centralDotSize: centralSpot
+            }));
+            
+            setTimeout(() => {
+              navigate(`/result/${remainingQuadrant}`);
+            }, 1500);
+          } else {
+            setTimeout(() => {
               const nextIdx = findNextAvailableIndex(currentIndex);
               if (nextIdx !== -1) {
                 setCurrentIndex(nextIdx);
                 setSelectedQuadrant(testCases[nextIdx].power_grid);
                 setCurrentFontSize(testCases[nextIdx].size);
+                setCurrentDirection(testCases[nextIdx].direction);
               } else {
                 navigate("/success");
               }
-            }
-          } else {
-            // Increase font size and try again on the same test case
-            setCurrentFontSize(prev => prev + 3);
+            }, 1500);
           }
-        }, 1500);
+        } else {
+          // Increase font size and change direction for wrong response immediately
+          setCurrentFontSize(prev => prev + 3);
+          // Generate a new random direction for the wrong response
+          const directions = ["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"];
+          const newDirection = directions[Math.floor(Math.random() * directions.length)];
+          setCurrentDirection(newDirection);
+        }
       }
     };
 
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [navigate, currentIndex, testCases, selectedQuadrant, quadrantWrongAttempts, nonIdentifiableQuadrants]);
+  }, [navigate, currentIndex, testCases, selectedQuadrant, quadrantWrongAttempts, nonIdentifiableQuadrants, currentDirection]);
 
   // Get grid position (same as COverlay)
   const getPosition = () => {
@@ -806,7 +818,8 @@ function TestPage() {
             currentFontSize,
             quadrantWrongAttempts,
             nonIdentifiableQuadrants: Array.from(nonIdentifiableQuadrants),
-            quadrantBlur: Array.from(quadrantBlur)
+            quadrantBlur: Array.from(quadrantBlur),
+            currentDirection
           };
           localStorage.setItem('prlDetectionState', JSON.stringify(stateToSave));
           navigate('/prl-scroll-test');
@@ -871,9 +884,9 @@ function TestPage() {
                 top: position.top,
                 left: position.left,
                 transform: `translate(-50%, -50%) rotate(${
-                  testCases[currentIndex].direction === "ArrowRight" ? "0deg" :
-                  testCases[currentIndex].direction === "ArrowLeft" ? "180deg" :
-                  testCases[currentIndex].direction === "ArrowUp" ? "270deg" :
+                  currentDirection === "ArrowRight" ? "0deg" :
+                  currentDirection === "ArrowLeft" ? "180deg" :
+                  currentDirection === "ArrowUp" ? "270deg" :
                   "90deg"
                 })`,
                 fontSize: `${currentFontSize}px`,
@@ -909,8 +922,8 @@ function ResultPage() {
   const [showGridAudio, setShowGridAudio] = useState(true);
   const audioRef = useRef(null);
 
-  // Map the mistaken quadrant to the training quadrant
-  const quadrantMap = { '1': '2', '2': '3', '3': '4', '4': '1' };
+  // Map the mistaken quadrant to the training quadrant (add 2 to power_grid)
+  const quadrantMap = { '1': '3', '2': '4', '3': '1', '4': '2' };
   const trainingQuadrant = quadrantMap[power_grid] || power_grid;
 
   // Add 1 to power_grid for audio file
@@ -1025,13 +1038,17 @@ function EccentricViewTraining() {
   const [quadrantBlur, setQuadrantBlur] = useState(new Set());
   const [quadrantBlurDropdownOpen, setQuadrantBlurDropdownOpen] = useState(false);
   const [nonIdentifiableQuadrants, setNonIdentifiableQuadrants] = useState(new Set());
+  // Track current direction for wrong responses - changes with each wrong attempt
+  const [currentDirection, setCurrentDirection] = useState(eccentricTestCases[0]?.direction || "ArrowRight");
 
   // Generate font size options from 80 to 30 in decrements of 10
   const fontSizeOptions = [80, 70, 60, 50, 40, 30];
 
   useEffect(() => {
-    setEccentricTestCases(generateEccentricTestCases(selectedFontSize));
-  }, [selectedFontSize]);
+    const newTestCases = generateEccentricTestCases(selectedFontSize);
+    setEccentricTestCases(newTestCases);
+    setCurrentDirection(newTestCases[currentIndex]?.direction || "ArrowRight");
+  }, [selectedFontSize, currentIndex]);
 
   // Reset showLetter and timer on new test case or duration change
   useEffect(() => {
@@ -1050,7 +1067,7 @@ function EccentricViewTraining() {
       if (!arrowKeys.includes(event.key)) {
         return;
       }
-      if (event.key === eccentricTestCases[currentIndex].direction) {
+      if (event.key === currentDirection) {
         // Correct key
         setShowCorrectAudio(true);
         setTimeout(() => {
@@ -1068,16 +1085,17 @@ function EccentricViewTraining() {
         }, 500); // Adjust timing based on audio length
       } else {
         setShowWrongAudio(true);
-        setTimeout(() => {
-          setMistakeRuns(prev => prev + 1);
-          setRunCount(prev => prev + 1);
-          resetTest();
-        }, 500); // Adjust timing based on audio length
+        // Immediately increase font size and change direction for wrong response
+        setSelectedFontSize(prev => Math.min(prev + 5, 120)); // Increase by 5, cap at 120
+        // Generate a new random direction for the wrong response
+        const directions = ["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"];
+        const newDirection = directions[Math.floor(Math.random() * directions.length)];
+        setCurrentDirection(newDirection);
       }
     };
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [navigate, currentIndex, eccentricTestCases, testActive]);
+  }, [navigate, currentIndex, eccentricTestCases, testActive, currentDirection]);
 
   useEffect(() => {
     if (runCount >= 5) {
@@ -1090,7 +1108,9 @@ function EccentricViewTraining() {
   function resetTest() {
     setCurrentIndex(0);
     setSelectedFontSize(80);
-    setEccentricTestCases(generateEccentricTestCases(80));
+    const newTestCases = generateEccentricTestCases(80);
+    setEccentricTestCases(newTestCases);
+    setCurrentDirection(newTestCases[0]?.direction || "ArrowRight");
   }
 
   return (
@@ -1190,7 +1210,7 @@ function EccentricViewTraining() {
           />
           {showLetter && !quadrantBlur.has(selectedQuadrant) && !nonIdentifiableQuadrants.has(selectedQuadrant) && (
             <COverlay 
-              direction={eccentricTestCases[currentIndex].direction} 
+              direction={currentDirection} 
               size={eccentricTestCases[currentIndex].size} 
               power_grid={selectedQuadrant}
               textColor={["3","4","5","7"].includes(selectedChart) ? 'white' : 'black'}
@@ -1343,6 +1363,7 @@ function EccentricStatsPage() {
 
 // Placeholder for Scroll Text Training page
 function ScrollTextTrainingPage() {
+  const navigate = useNavigate();
   const userData = JSON.parse(localStorage.getItem("userData") || "{}")
   const [selectedQuadrant, setSelectedQuadrant] = React.useState("4");
   const [scrollSpeed, setScrollSpeed] = React.useState("medium");
@@ -1394,32 +1415,32 @@ function ScrollTextTrainingPage() {
     return () => cancelAnimationFrame(animationFrameId);
   }, [pixelsPerFrame]);
 
-  // Dot positioning logic
+  // Dot positioning logic with proper spacing from scroll text (clockwise numbering)
   const getDotStyle = () => {
     switch (selectedQuadrant) {
-      case "1": // 20vh from bottom edge, horizontally centered
+      case "1": // Above the scroll text box (Top-center)
         return {
           left: '50%',
-          bottom: '30vh',
+          bottom: '70%',
           top: 'auto',
           transform: 'translateX(-50%)',
         };
-      case "2": // 10vw from left edge, vertically centered
+      case "2": // To the right of the scroll text box (Center-right)
         return {
-          left: '20vw',
+          right: '5%',
+          left: 'auto',
           top: '50%',
           transform: 'translateY(-50%)',
         };
-      case "3": // 20vh from top edge, horizontally centered
+      case "3": // Below the scroll text box (Bottom-center)
         return {
           left: '50%',
-          top: '30vh',
+          top: '70%',
           transform: 'translateX(-50%)',
         };
-      case "4": // 10vw from right edge, vertically centered
+      case "4": // To the left of the scroll text box (Center-left)
         return {
-          right: '20vw',
-          left: 'auto',
+          left: '5%',
           top: '50%',
           transform: 'translateY(-50%)',
         };
@@ -1452,49 +1473,89 @@ function ScrollTextTrainingPage() {
         justifyContent: 'center',
         position: 'relative',
       }}>
-        {/* Scrolling text box */}
-        <div 
-          ref={containerRef}
-          style={{
-            width: '50vw',
-            height: selectedFontSize * 2,
-            background: '#ffe066',
-            position: 'relative',
-            overflow: 'hidden',
-            display: 'flex',
-            alignItems: 'center',
-            borderRadius: 4,
-          }}
-        >
-          <div
-            ref={textRef}
+        {/* Main flex container that scales with screen */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative',
+          width: '80vw',
+          height: '80vh',
+          minWidth: '600px',
+          minHeight: '400px',
+          maxWidth: '90vw',
+          maxHeight: '90vh',
+        }}>
+          {/* Scrolling text box */}
+          <div 
+            ref={containerRef}
             style={{
-              whiteSpace: 'nowrap',
-              fontSize: selectedFontSize,
-              color: 'black',
-              fontWeight: 'bold',
-              position: 'absolute',
-              left: `${position}px`,
-              top: '50%',
-              transform: 'translateY(-50%)',
+              width: '75%',
+              height: selectedFontSize * 2,
+              background: '#ffe066',
+              position: 'relative',
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              borderRadius: 4,
+              minWidth: '900px',
+              maxWidth: '1200px',
             }}
           >
-            {text}
+            <div
+              ref={textRef}
+              style={{
+                whiteSpace: 'nowrap',
+                fontSize: selectedFontSize,
+                color: 'black',
+                fontWeight: 'bold',
+                position: 'absolute',
+                left: `${position}px`,
+                top: '50%',
+                transform: 'translateY(-50%)',
+              }}
+            >
+              {text}
+            </div>
           </div>
+          
+          {/* Dot positioned with proper spacing from scroll text */}
+          <div
+            style={{
+              position: 'absolute',
+              // Spot sizes: big = 115px, medium = 85px, small = 60px
+              width: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
+              height: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
+              borderRadius: '50%',
+              background: 'black',
+              zIndex: 2,
+              ...getDotStyle(),
+            }}
+          />
         </div>
-        {/* Dot, absolutely positioned relative to the parent container */}
-        <div
+        
+        {/* Go to EVT Training button */}
+        <button
+          onClick={() => {
+            navigate('/eccentric-training');
+          }}
           style={{
             position: 'absolute',
-            // Spot sizes: big = 100px, medium = 85px, small = 60px
-            width: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
-            height: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
-            borderRadius: '50%',
-            background: 'black',
-            ...getDotStyle(),
-            zIndex: 2,
+            bottom: 24,
+            left: 24,
+            backgroundColor: '#28a745',
+            color: 'white',
+            border: 'none',
+            padding: '10px 16px',
+            borderRadius: 6,
+            cursor: 'pointer',
+            zIndex: 3,
+            fontSize: '14px',
+            fontWeight: 'bold'
           }}
-        />
+        >
+          Go to EVT Training
+        </button>
       </div>
     </div>
   );
@@ -1549,14 +1610,14 @@ function PRLScrollTestPage() {
 
   const getDotStyle = () => {
     switch (selectedQuadrant) {
-      case "1":
-        return { left: '50%', bottom: '30vh', top: 'auto', transform: 'translateX(-50%)' };
-      case "2":
-        return { left: '20vw', top: '50%', transform: 'translateY(-50%)' };
-      case "3":
-        return { left: '50%', top: '30vh', transform: 'translateX(-50%)' };
-      case "4":
-        return { right: '20vw', left: 'auto', top: '50%', transform: 'translateY(-50%)' };
+      case "1": // Above the scroll text box (Top-center)
+        return { left: '50%', bottom: '70%', top: 'auto', transform: 'translateX(-50%)' };
+      case "2": // To the right of the scroll text box (Center-right)
+        return { right: '5%', left: 'auto', top: '50%', transform: 'translateY(-50%)' };
+      case "3": // Below the scroll text box (Bottom-center)
+        return { left: '50%', top: '70%', transform: 'translateX(-50%)' };
+      case "4": // To the left of the scroll text box (Center-left)
+        return { left: '5%', top: '50%', transform: 'translateY(-50%)' };
       default:
         return { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' };
     }
@@ -1586,48 +1647,66 @@ function PRLScrollTestPage() {
         justifyContent: 'center',
         position: 'relative',
       }}>
-        <div 
-          ref={containerRef}
-          style={{
-            width: '50vw',
-            height: selectedFontSize * 2,
-            background: '#ffe066',
-            position: 'relative',
-            overflow: 'hidden',
-            display: 'flex',
-            alignItems: 'center',
-            borderRadius: 4,
-          }}
-        >
-          <div
-            ref={textRef}
+        {/* Main flex container that scales with screen */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative',
+          width: '80vw',
+          height: '80vh',
+          minWidth: '600px',
+          minHeight: '400px',
+          maxWidth: '90vw',
+          maxHeight: '90vh',
+        }}>
+          <div 
+            ref={containerRef}
             style={{
-              whiteSpace: 'nowrap',
-              fontSize: selectedFontSize,
-              color: 'black',
-              fontWeight: 'bold',
-              position: 'absolute',
-              left: `${position}px`,
-              top: '50%',
-              transform: 'translateY(-50%)',
+              width: '75%',
+              height: selectedFontSize * 2,
+              background: '#ffe066',
+              position: 'relative',
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              borderRadius: 4,
+              minWidth: '900px',
+              maxWidth: '1200px',
             }}
           >
-            {/* Title adjusted for PRL Scroll Test */}
-            PRL scroll test — {text}
+            <div
+              ref={textRef}
+              style={{
+                whiteSpace: 'nowrap',
+                fontSize: selectedFontSize,
+                color: 'black',
+                fontWeight: 'bold',
+                position: 'absolute',
+                left: `${position}px`,
+                top: '50%',
+                transform: 'translateY(-50%)',
+              }}
+            >
+              {/* Title adjusted for PRL Scroll Test */}
+              PRL scroll test — {text}
+            </div>
           </div>
+          
+          {/* Dot positioned with proper spacing from scroll text */}
+          <div
+            style={{
+              position: 'absolute',
+              width: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
+              height: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
+              borderRadius: '50%',
+              background: 'black',
+              zIndex: 2,
+              ...getDotStyle(),
+            }}
+          />
         </div>
-        {/* Dot */}
-        <div
-          style={{
-            position: 'absolute',
-            width: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
-            height: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
-            borderRadius: '50%',
-            background: 'black',
-            ...getDotStyle(),
-            zIndex: 2,
-          }}
-        />
+        
         {/* Resume button */}
         <button
           onClick={() => {
