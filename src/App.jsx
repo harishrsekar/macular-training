@@ -1415,37 +1415,46 @@ function ScrollTextTrainingPage() {
     return () => cancelAnimationFrame(animationFrameId);
   }, [pixelsPerFrame]);
 
-  // Dot positioning logic with proper spacing from scroll text (clockwise numbering)
-  const getDotStyle = () => {
+  // Container layout logic for scroll box + spacer + dot
+  const getContainerLayout = () => {
+    const spacerSize = '100px'; // Fixed spacer size
+    
     switch (selectedQuadrant) {
       case "1": // Above the scroll text box (Top-center)
         return {
-          left: '50%',
-          bottom: '70%',
-          top: 'auto',
-          transform: 'translateX(-50%)',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          order: ['dot', 'spacer', 'scrollBox']
         };
       case "2": // To the right of the scroll text box (Center-right)
         return {
-          right: '5%',
-          left: 'auto',
-          top: '50%',
-          transform: 'translateY(-50%)',
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          order: ['scrollBox', 'spacer', 'dot']
         };
       case "3": // Below the scroll text box (Bottom-center)
         return {
-          left: '50%',
-          top: '70%',
-          transform: 'translateX(-50%)',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          order: ['scrollBox', 'spacer', 'dot']
         };
       case "4": // To the left of the scroll text box (Center-left)
         return {
-          left: '5%',
-          top: '50%',
-          transform: 'translateY(-50%)',
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          order: ['dot', 'spacer', 'scrollBox']
         };
       default:
-        return { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' };
+        return {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          order: ['scrollBox', 'spacer', 'dot']
+        };
     }
   };
 
@@ -1486,52 +1495,72 @@ function ScrollTextTrainingPage() {
           maxWidth: '90vw',
           maxHeight: '90vh',
         }}>
-          {/* Scrolling text box */}
-          <div 
-            ref={containerRef}
-            style={{
-              width: '75%',
-              height: selectedFontSize * 2,
-              background: '#ffe066',
-              position: 'relative',
-              overflow: 'hidden',
-              display: 'flex',
-              alignItems: 'center',
-              borderRadius: 4,
-              minWidth: '900px',
-              maxWidth: '1200px',
-            }}
-          >
+          {/* Container with scroll box + spacer + dot layout */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: getContainerLayout().flexDirection,
+            gap: '20px',
+          }}>
+            {/* Dot component */}
             <div
-              ref={textRef}
               style={{
-                whiteSpace: 'nowrap',
-                fontSize: selectedFontSize,
-                color: 'black',
-                fontWeight: 'bold',
-                position: 'absolute',
-                left: `${position}px`,
-                top: '50%',
-                transform: 'translateY(-50%)',
+                // Spot sizes: big = 115px, medium = 85px, small = 60px
+                width: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
+                height: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
+                borderRadius: '50%',
+                background: 'black',
+                flexShrink: 0,
+                order: getContainerLayout().order.indexOf('dot'),
+              }}
+            />
+            
+            {/* Spacer element */}
+            <div
+              style={{
+                width: getContainerLayout().flexDirection === 'row' ? '100px' : '20px',
+                height: getContainerLayout().flexDirection === 'column' ? '100px' : '20px',
+                flexShrink: 0,
+                order: getContainerLayout().order.indexOf('spacer'),
+              }}
+            />
+            
+            {/* Scrolling text box */}
+            <div 
+              ref={containerRef}
+              style={{
+                width: '75%',
+                height: selectedFontSize * 2,
+                background: '#ffe066',
+                position: 'relative',
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'center',
+                borderRadius: 4,
+                minWidth: '900px',
+                maxWidth: '1200px',
+                flexShrink: 0,
+                order: getContainerLayout().order.indexOf('scrollBox'),
               }}
             >
-              {text}
+              <div
+                ref={textRef}
+                style={{
+                  whiteSpace: 'nowrap',
+                  fontSize: selectedFontSize,
+                  color: 'black',
+                  fontWeight: 'bold',
+                  position: 'absolute',
+                  left: `${position}px`,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                }}
+              >
+                {text}
+              </div>
             </div>
           </div>
-          
-          {/* Dot positioned with proper spacing from scroll text */}
-          <div
-            style={{
-              position: 'absolute',
-              // Spot sizes: big = 115px, medium = 85px, small = 60px
-              width: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
-              height: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
-              borderRadius: '50%',
-              background: 'black',
-              zIndex: 2,
-              ...getDotStyle(),
-            }}
-          />
         </div>
         
         {/* Go to EVT Training button */}
@@ -1608,18 +1637,46 @@ function PRLScrollTestPage() {
     return () => cancelAnimationFrame(animationFrameId);
   }, [pixelsPerFrame]);
 
-  const getDotStyle = () => {
+  // Container layout logic for scroll box + spacer + dot
+  const getContainerLayout = () => {
+    const spacerSize = '100px'; // Fixed spacer size
+    
     switch (selectedQuadrant) {
       case "1": // Above the scroll text box (Top-center)
-        return { left: '50%', bottom: '70%', top: 'auto', transform: 'translateX(-50%)' };
+        return {
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          order: ['dot', 'spacer', 'scrollBox']
+        };
       case "2": // To the right of the scroll text box (Center-right)
-        return { right: '5%', left: 'auto', top: '50%', transform: 'translateY(-50%)' };
+        return {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          order: ['scrollBox', 'spacer', 'dot']
+        };
       case "3": // Below the scroll text box (Bottom-center)
-        return { left: '50%', top: '70%', transform: 'translateX(-50%)' };
+        return {
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          order: ['scrollBox', 'spacer', 'dot']
+        };
       case "4": // To the left of the scroll text box (Center-left)
-        return { left: '5%', top: '50%', transform: 'translateY(-50%)' };
+        return {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          order: ['dot', 'spacer', 'scrollBox']
+        };
       default:
-        return { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' };
+        return {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          order: ['scrollBox', 'spacer', 'dot']
+        };
     }
   };
 
@@ -1660,51 +1717,73 @@ function PRLScrollTestPage() {
           maxWidth: '90vw',
           maxHeight: '90vh',
         }}>
-          <div 
-            ref={containerRef}
-            style={{
-              width: '75%',
-              height: selectedFontSize * 2,
-              background: '#ffe066',
-              position: 'relative',
-              overflow: 'hidden',
-              display: 'flex',
-              alignItems: 'center',
-              borderRadius: 4,
-              minWidth: '900px',
-              maxWidth: '1200px',
-            }}
-          >
+          {/* Container with scroll box + spacer + dot layout */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: getContainerLayout().flexDirection,
+            gap: '20px',
+          }}>
+            {/* Dot component */}
             <div
-              ref={textRef}
               style={{
-                whiteSpace: 'nowrap',
-                fontSize: selectedFontSize,
-                color: 'black',
-                fontWeight: 'bold',
-                position: 'absolute',
-                left: `${position}px`,
-                top: '50%',
-                transform: 'translateY(-50%)',
+                // Spot sizes: big = 115px, medium = 85px, small = 60px
+                width: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
+                height: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
+                borderRadius: '50%',
+                background: 'black',
+                flexShrink: 0,
+                order: getContainerLayout().order.indexOf('dot'),
+              }}
+            />
+            
+            {/* Spacer element */}
+            <div
+              style={{
+                width: getContainerLayout().flexDirection === 'row' ? '100px' : '20px',
+                height: getContainerLayout().flexDirection === 'column' ? '100px' : '20px',
+                flexShrink: 0,
+                order: getContainerLayout().order.indexOf('spacer'),
+              }}
+            />
+            
+            {/* Scrolling text box */}
+            <div 
+              ref={containerRef}
+              style={{
+                width: '75%',
+                height: selectedFontSize * 2,
+                background: '#ffe066',
+                position: 'relative',
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'center',
+                borderRadius: 4,
+                minWidth: '900px',
+                maxWidth: '1200px',
+                flexShrink: 0,
+                order: getContainerLayout().order.indexOf('scrollBox'),
               }}
             >
-              {/* Title adjusted for PRL Scroll Test */}
-              PRL scroll test — {text}
+              <div
+                ref={textRef}
+                style={{
+                  whiteSpace: 'nowrap',
+                  fontSize: selectedFontSize,
+                  color: 'black',
+                  fontWeight: 'bold',
+                  position: 'absolute',
+                  left: `${position}px`,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                }}
+              >
+                {/* Title adjusted for PRL Scroll Test */}
+                PRL scroll test — {text}
+              </div>
             </div>
           </div>
-          
-          {/* Dot positioned with proper spacing from scroll text */}
-          <div
-            style={{
-              position: 'absolute',
-              width: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
-              height: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
-              borderRadius: '50%',
-              background: 'black',
-              zIndex: 2,
-              ...getDotStyle(),
-            }}
-          />
         </div>
         
         {/* Resume button */}
