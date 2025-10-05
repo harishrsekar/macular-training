@@ -975,7 +975,8 @@ function ResultPage() {
       <h1>KEEP YOUR VISUAL ATTENTION TO QUADRANT {trainingQuadrant} FOR FURTHER TRAINING</h1>
       <div style={{ marginTop: "20px" }}>
         <button style={{ marginRight: "10px" }} onClick={() => navigate("/test/0")}>Restart</button>
-        <button onClick={handleEccentricTraining}>Go to Eccentric View Training</button>
+        <button style={{ marginRight: "10px" }} onClick={handleEccentricTraining}>Go to Eccentric View Training</button>
+        <button onClick={() => navigate("/scroll-text-training")}>Go to Scroll Text Training</button>
       </div>
     </div>
   );  
@@ -1417,43 +1418,46 @@ function ScrollTextTrainingPage() {
 
   // Container layout logic for scroll box + spacer + dot
   const getContainerLayout = () => {
-    const spacerSize = '100px'; // Fixed spacer size
-    
     switch (selectedQuadrant) {
       case "1": // Above the scroll text box (Top-center)
         return {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          order: ['dot', 'spacer', 'scrollBox']
+          order: ['dot', 'spacer', 'scrollBox'],
+          spacerSize: '8%'
         };
       case "2": // To the right of the scroll text box (Center-right)
         return {
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'center',
-          order: ['scrollBox', 'spacer', 'dot']
+          order: ['scrollBox', 'spacer', 'dot'],
+          spacerSize: '8%'
         };
       case "3": // Below the scroll text box (Bottom-center)
         return {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          order: ['scrollBox', 'spacer', 'dot']
+          order: ['scrollBox', 'spacer', 'dot'],
+          spacerSize: '8%'
         };
       case "4": // To the left of the scroll text box (Center-left)
         return {
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'center',
-          order: ['dot', 'spacer', 'scrollBox']
+          order: ['dot', 'spacer', 'scrollBox'],
+          spacerSize: '8%'
         };
       default:
         return {
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'center',
-          order: ['scrollBox', 'spacer', 'dot']
+          order: ['scrollBox', 'spacer', 'dot'],
+          spacerSize: '8%'
         };
     }
   };
@@ -1488,12 +1492,8 @@ function ScrollTextTrainingPage() {
           alignItems: 'center',
           justifyContent: 'center',
           position: 'relative',
-          width: '80vw',
-          height: '80vh',
-          minWidth: '600px',
-          minHeight: '400px',
-          maxWidth: '90vw',
-          maxHeight: '90vh',
+          width: '85vw',
+          height: '85vh',
         }}>
           {/* Container with scroll box + spacer + dot layout */}
           <div style={{
@@ -1501,7 +1501,9 @@ function ScrollTextTrainingPage() {
             alignItems: 'center',
             justifyContent: 'center',
             flexDirection: getContainerLayout().flexDirection,
-            gap: '20px',
+            gap: '2%',
+            width: '100%',
+            height: '100%',
           }}>
             {/* Dot component */}
             <div
@@ -1519,8 +1521,8 @@ function ScrollTextTrainingPage() {
             {/* Spacer element */}
             <div
               style={{
-                width: getContainerLayout().flexDirection === 'row' ? '100px' : '20px',
-                height: getContainerLayout().flexDirection === 'column' ? '100px' : '20px',
+                width: getContainerLayout().flexDirection === 'row' ? getContainerLayout().spacerSize : '2%',
+                height: getContainerLayout().flexDirection === 'column' ? getContainerLayout().spacerSize : '2%',
                 flexShrink: 0,
                 order: getContainerLayout().order.indexOf('spacer'),
               }}
@@ -1530,16 +1532,14 @@ function ScrollTextTrainingPage() {
             <div 
               ref={containerRef}
               style={{
-                width: '75%',
-                height: selectedFontSize * 2,
+                width: getContainerLayout().flexDirection === 'row' ? '60%' : '80%',
+                height: getContainerLayout().flexDirection === 'column' ? '40%' : '15%',
                 background: '#ffe066',
                 position: 'relative',
                 overflow: 'hidden',
                 display: 'flex',
                 alignItems: 'center',
                 borderRadius: 4,
-                minWidth: '900px',
-                maxWidth: '1200px',
                 flexShrink: 0,
                 order: getContainerLayout().order.indexOf('scrollBox'),
               }}
@@ -1710,12 +1710,8 @@ function PRLScrollTestPage() {
           alignItems: 'center',
           justifyContent: 'center',
           position: 'relative',
-          width: '80vw',
-          height: '80vh',
-          minWidth: '600px',
-          minHeight: '400px',
-          maxWidth: '90vw',
-          maxHeight: '90vh',
+          width: '85vw',
+          height: '85vh',
         }}>
           {/* Container with scroll box + spacer + dot layout */}
           <div style={{
@@ -1723,7 +1719,9 @@ function PRLScrollTestPage() {
             alignItems: 'center',
             justifyContent: 'center',
             flexDirection: getContainerLayout().flexDirection,
-            gap: '20px',
+            gap: '2%',
+            width: '100%',
+            height: '100%',
           }}>
             {/* Dot component */}
             <div
@@ -1741,8 +1739,8 @@ function PRLScrollTestPage() {
             {/* Spacer element */}
             <div
               style={{
-                width: getContainerLayout().flexDirection === 'row' ? '100px' : '20px',
-                height: getContainerLayout().flexDirection === 'column' ? '100px' : '20px',
+                width: getContainerLayout().flexDirection === 'row' ? getContainerLayout().spacerSize : '2%',
+                height: getContainerLayout().flexDirection === 'column' ? getContainerLayout().spacerSize : '2%',
                 flexShrink: 0,
                 order: getContainerLayout().order.indexOf('spacer'),
               }}
@@ -1752,16 +1750,14 @@ function PRLScrollTestPage() {
             <div 
               ref={containerRef}
               style={{
-                width: '75%',
-                height: selectedFontSize * 2,
+                width: getContainerLayout().flexDirection === 'row' ? '60%' : '80%',
+                height: getContainerLayout().flexDirection === 'column' ? '40%' : '15%',
                 background: '#ffe066',
                 position: 'relative',
                 overflow: 'hidden',
                 display: 'flex',
                 alignItems: 'center',
                 borderRadius: 4,
-                minWidth: '900px',
-                maxWidth: '1200px',
                 flexShrink: 0,
                 order: getContainerLayout().order.indexOf('scrollBox'),
               }}
