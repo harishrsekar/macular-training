@@ -20,7 +20,7 @@ const getFormattedTimestamp = () => {
 }; 
 
 // AppBar component
-function AppBar({ patientName, onFontSizeChange, selectedQuadrant, setSelectedQuadrant, duration, setDuration, showDurationDropdown = false, scrollSpeed, setScrollSpeed, showSpeedDropdown = false, fontSizeOptions, selectedFontSize, centralSpot, setCentralSpot, showCentralSpot = false, selectedChart, setSelectedChart, showChartDropdown = false, quadrantBlur, setQuadrantBlur, showQuadrantBlurDropdown = false, quadrantBlurDropdownOpen, setQuadrantBlurDropdownOpen, nonIdentifiableQuadrants, setNonIdentifiableQuadrants, showPRLScrollButton = false, onGoToPRLScroll }) {
+function AppBar({ patientName, onFontSizeChange, selectedQuadrant, setSelectedQuadrant, duration, setDuration, showDurationDropdown = false, scrollSpeed, setScrollSpeed, showSpeedDropdown = false, fontSizeOptions, selectedFontSize, centralSpot, setCentralSpot, showCentralSpot = false, selectedChart, setSelectedChart, showChartDropdown = false, quadrantBlur, setQuadrantBlur, showQuadrantBlurDropdown = false, quadrantBlurDropdownOpen, setQuadrantBlurDropdownOpen, nonIdentifiableQuadrants, setNonIdentifiableQuadrants, showPRLScrollButton = false, onGoToPRLScroll, spacing, setSpacing, showSpacingSlider = false }) {
   return (
     <div style={{
       position: 'fixed',
@@ -192,6 +192,54 @@ function AppBar({ patientName, onFontSizeChange, selectedQuadrant, setSelectedQu
               <option value="medium">Medium</option>
               <option value="fast">Fast</option>
             </select>
+          </div>
+        )}
+        {showSpacingSlider && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <label style={{ color: 'white', marginRight: 4, whiteSpace: 'nowrap', fontSize: '14px' }}>Spacing:</label>
+            <button
+              onClick={() => setSpacing(Math.max(0, spacing - 1))}
+              disabled={spacing === 0}
+              style={{
+                padding: '4px 8px',
+                borderRadius: '4px',
+                backgroundColor: spacing === 0 ? '#555' : '#333',
+                color: 'white',
+                border: '1px solid #555',
+                cursor: spacing === 0 ? 'not-allowed' : 'pointer',
+                fontSize: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: '32px',
+                height: '32px'
+              }}
+              title="Decrease spacing"
+            >
+              ←
+            </button>
+            <span style={{ color: 'white', fontSize: '14px', minWidth: 35, textAlign: 'center' }}>{spacing}%</span>
+            <button
+              onClick={() => setSpacing(Math.min(30, spacing + 1))}
+              disabled={spacing === 30}
+              style={{
+                padding: '4px 8px',
+                borderRadius: '4px',
+                backgroundColor: spacing === 30 ? '#555' : '#333',
+                color: 'white',
+                border: '1px solid #555',
+                cursor: spacing === 30 ? 'not-allowed' : 'pointer',
+                fontSize: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: '32px',
+                height: '32px'
+              }}
+              title="Increase spacing"
+            >
+              →
+            </button>
           </div>
         )}
         <select 
@@ -762,7 +810,8 @@ function TestPage() {
       "1": { top: "25%", left: "50%" },    // Top-center
       "2": { top: "50%", left: "75%" },    // Center-right
       "3": { top: "75%", left: "50%" },    // Bottom-center
-      "4": { top: "50%", left: "25%" }     // Center-left
+      "4": { top: "50%", left: "25%" }    
+       // Center-left
     };
     return positions[selectedQuadrant] || { top: "50%", left: "50%" };
   };
@@ -789,7 +838,7 @@ function TestPage() {
       )}
       <AppBar 
         patientName={userData.name || "Unknown"} 
-        onFontSizeChange={() => {}} // Disable font size changes
+        onFontSizeChange={setCurrentFontSize}
         selectedQuadrant={selectedQuadrant}
         setSelectedQuadrant={setSelectedQuadrant}
         fontSizeOptions={fontSizeOptions}
@@ -1370,6 +1419,7 @@ function ScrollTextTrainingPage() {
   const [scrollSpeed, setScrollSpeed] = React.useState("medium");
   const [selectedFontSize, setSelectedFontSize] = React.useState(80);
   const [centralSpot, setCentralSpot] = React.useState("big");
+  const [spacing, setSpacing] = React.useState(8);
   const [position, setPosition] = React.useState(0);
   const containerRef = React.useRef(null);
   const textRef = React.useRef(null);
@@ -1424,40 +1474,35 @@ function ScrollTextTrainingPage() {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          order: ['dot', 'spacer', 'scrollBox'],
-          spacerSize: '8%'
+          order: ['dot', 'spacer', 'scrollBox']
         };
       case "2": // To the right of the scroll text box (Center-right)
         return {
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'center',
-          order: ['scrollBox', 'spacer', 'dot'],
-          spacerSize: '8%'
+          order: ['scrollBox', 'spacer', 'dot']
         };
       case "3": // Below the scroll text box (Bottom-center)
         return {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          order: ['scrollBox', 'spacer', 'dot'],
-          spacerSize: '8%'
+          order: ['scrollBox', 'spacer', 'dot']
         };
       case "4": // To the left of the scroll text box (Center-left)
         return {
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'center',
-          order: ['dot', 'spacer', 'scrollBox'],
-          spacerSize: '8%'
+          order: ['dot', 'spacer', 'scrollBox']
         };
       default:
         return {
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'center',
-          order: ['scrollBox', 'spacer', 'dot'],
-          spacerSize: '8%'
+          order: ['scrollBox', 'spacer', 'dot']
         };
     }
   };
@@ -1477,6 +1522,9 @@ function ScrollTextTrainingPage() {
         showCentralSpot={true}
         centralSpot={centralSpot}
         setCentralSpot={setCentralSpot}
+        spacing={spacing}
+        setSpacing={setSpacing}
+        showSpacingSlider={true}
       />
       <div style={{
         width: '100vw',
@@ -1501,7 +1549,7 @@ function ScrollTextTrainingPage() {
             alignItems: 'center',
             justifyContent: 'center',
             flexDirection: getContainerLayout().flexDirection,
-            gap: '2%',
+            gap: 0,
             width: '100%',
             height: '100%',
           }}>
@@ -1521,8 +1569,8 @@ function ScrollTextTrainingPage() {
             {/* Spacer element */}
             <div
               style={{
-                width: getContainerLayout().flexDirection === 'row' ? getContainerLayout().spacerSize : '2%',
-                height: getContainerLayout().flexDirection === 'column' ? getContainerLayout().spacerSize : '2%',
+                width: getContainerLayout().flexDirection === 'row' ? (spacing === 0 ? '0px' : `${spacing}%`) : '0px',
+                height: getContainerLayout().flexDirection === 'column' ? (spacing === 0 ? '0px' : `${spacing}%`) : '0px',
                 flexShrink: 0,
                 order: getContainerLayout().order.indexOf('spacer'),
               }}
@@ -1533,7 +1581,7 @@ function ScrollTextTrainingPage() {
               ref={containerRef}
               style={{
                 width: getContainerLayout().flexDirection === 'row' ? '60%' : '80%',
-                height: getContainerLayout().flexDirection === 'column' ? '40%' : '15%',
+                height: '15%',
                 background: '#ffe066',
                 position: 'relative',
                 overflow: 'hidden',
@@ -1598,6 +1646,7 @@ function PRLScrollTestPage() {
   const [scrollSpeed, setScrollSpeed] = React.useState("medium");
   const [selectedFontSize, setSelectedFontSize] = React.useState(80);
   const [centralSpot, setCentralSpot] = React.useState("big");
+  const [spacing, setSpacing] = React.useState(8);
   const [position, setPosition] = React.useState(0);
   const containerRef = React.useRef(null);
   const textRef = React.useRef(null);
@@ -1639,8 +1688,6 @@ function PRLScrollTestPage() {
 
   // Container layout logic for scroll box + spacer + dot
   const getContainerLayout = () => {
-    const spacerSize = '100px'; // Fixed spacer size
-    
     switch (selectedQuadrant) {
       case "1": // Above the scroll text box (Top-center)
         return {
@@ -1695,6 +1742,9 @@ function PRLScrollTestPage() {
         showCentralSpot={true}
         centralSpot={centralSpot}
         setCentralSpot={setCentralSpot}
+        spacing={spacing}
+        setSpacing={setSpacing}
+        showSpacingSlider={true}
       />
       <div style={{
         width: '100vw',
@@ -1719,7 +1769,7 @@ function PRLScrollTestPage() {
             alignItems: 'center',
             justifyContent: 'center',
             flexDirection: getContainerLayout().flexDirection,
-            gap: '2%',
+            gap: 0,
             width: '100%',
             height: '100%',
           }}>
@@ -1739,8 +1789,8 @@ function PRLScrollTestPage() {
             {/* Spacer element */}
             <div
               style={{
-                width: getContainerLayout().flexDirection === 'row' ? getContainerLayout().spacerSize : '2%',
-                height: getContainerLayout().flexDirection === 'column' ? getContainerLayout().spacerSize : '2%',
+                width: getContainerLayout().flexDirection === 'row' ? (spacing === 0 ? '0px' : `${spacing}%`) : '0px',
+                height: getContainerLayout().flexDirection === 'column' ? (spacing === 0 ? '0px' : `${spacing}%`) : '0px',
                 flexShrink: 0,
                 order: getContainerLayout().order.indexOf('spacer'),
               }}
@@ -1751,7 +1801,7 @@ function PRLScrollTestPage() {
               ref={containerRef}
               style={{
                 width: getContainerLayout().flexDirection === 'row' ? '60%' : '80%',
-                height: getContainerLayout().flexDirection === 'column' ? '40%' : '15%',
+                height: '15%',
                 background: '#ffe066',
                 position: 'relative',
                 overflow: 'hidden',
