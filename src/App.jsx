@@ -355,6 +355,23 @@ function VideoPlayer({ src, onEnded, ref }) {
 // Generate randomized PRL detection test cases
 const testCases = generatePRLTestCases();
 
+// Helper to resolve chart image paths, allowing overrides for specific charts
+function getChartImage(chart) {
+  const c = String(chart);
+  switch (c) {
+    case "1":
+      return "/charts/Chart_1_new.png";
+    case "2":
+      return "/charts/Chart_2_new.png";
+    case "3":
+      return "/charts/Chart_3_new.png";
+    case "7":
+      return "/charts/Chart_7_new.png";
+    default:
+      return `/charts/Chart${c}.png`;
+  }
+}
+
 // Component to render the C overlay
 function COverlay({ direction, size, power_grid, textColor = 'black' }) {
   const getRotation = () => {
@@ -878,7 +895,7 @@ function TestPage() {
         <h1 className="test-title">PRL Detection</h1>
         <p className="test-instruction">Press the direction of opening in C using the arrow keys.</p>
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-          <img src={`/charts/Chart${selectedChart}.png`} alt="Grid" className="test-image" />
+          <img src={getChartImage(selectedChart)} alt="Grid" className="test-image" />
           {/* Quadrant blur overlays for non-identifiable quadrants */}
           {Array.from(quadrantBlur).map(quadrant => {
             const rotations = {
@@ -1207,7 +1224,7 @@ function EccentricViewTraining() {
         <h1 className="test-title">Eccentric View Training</h1>
         <p className="test-instruction">Press the direction of opening in C using the arrow keys.</p>
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-          <img src={`/charts/Chart${selectedChart}.png`} alt="Grid" className="test-image" />
+          <img src={getChartImage(selectedChart)} alt="Grid" className="test-image" />
           {/* Quadrant blur overlays for non-identifiable quadrants */}
           {Array.from(quadrantBlur).map(quadrant => {
             const rotations = {
@@ -1339,7 +1356,7 @@ function EccentricResultPage() {
         <h1 className="test-title">Eccentric View Training</h1>
         <p className="test-instruction">Press the direction of opening in {showLetter} using the arrow keys.</p>
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-          <img src={`/charts/Chart${selectedChart}.png`} alt="Grid" className="test-image" />
+          <img src={getChartImage(selectedChart)} alt="Grid" className="test-image" />
           <div 
             style={{
               position: 'absolute',
