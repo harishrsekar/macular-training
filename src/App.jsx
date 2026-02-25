@@ -928,7 +928,7 @@ function TestPage() {
               width: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
               height: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
               borderRadius: '50%',
-              backgroundColor: isDarkChart ? 'white' : 'black',
+              backgroundColor: selectedChart === "3" ? 'red' : (isDarkChart ? 'white' : 'black'),
               pointerEvents: 'none',
             }}
           />
@@ -1265,8 +1265,9 @@ function EccentricViewTraining() {
               width: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
               height: centralSpot === "big" ? '115px' : centralSpot === "medium" ? '85px' : '60px',
               borderRadius: '50%',
-              backgroundColor: ["3","4","5","7"].includes(selectedChart) ? 'white' : 'black',
-              
+              backgroundColor: selectedChart === "3"
+                ? 'red'
+                : (["3","4","5","7"].includes(selectedChart) ? 'white' : 'black'),
               pointerEvents: 'none',
             }}
           />
