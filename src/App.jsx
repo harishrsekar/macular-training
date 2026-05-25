@@ -532,15 +532,8 @@ function ExistingPatientPage() {
   };
 
   const handleContinueTraining = () => {
-    // Check if there are existing test results to determine where to continue
-    if (patientData.testResults) {
-      // If there are test results, continue to eccentric training
-      localStorage.setItem("selectedGrid", patientData.testResults.trainingQuadrant || "4");
-      navigate("/eccentric-training");
-    } else {
-      // If no test results, start from PRL detection
-      navigate("/instructions");
-    }
+    localStorage.setItem("selectedGrid", patientData.testResults?.trainingQuadrant || "4");
+    navigate("/eccentric-training");
   };
 
   return (
@@ -636,7 +629,7 @@ function InstructionsPage() {
     setShowAudio(false);
     // Add a small delay before navigating to ensure audio is fully stopped
     setTimeout(() => {
-      navigate("/test/0");
+      navigate("/test");
     }, 500);
   };
 
@@ -1029,7 +1022,7 @@ function ResultPage() {
       )}
       <h1>KEEP YOUR VISUAL ATTENTION TO QUADRANT {trainingQuadrant} FOR FURTHER TRAINING</h1>
       <div style={{ marginTop: "20px" }}>
-        <button style={{ marginRight: "10px" }} onClick={() => navigate("/test/0")}>Restart</button>
+        <button style={{ marginRight: "10px" }} onClick={() => navigate("/test")}>Restart</button>
         <button style={{ marginRight: "10px" }} onClick={handleEccentricTraining}>Go to Eccentric View Training</button>
         <button onClick={() => navigate("/scroll-text-training")}>Go to Scroll Text Training</button>
       </div>
@@ -1062,8 +1055,8 @@ function SuccessPage() {
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <h1>You will continue the training in Grid 2.</h1>
         <div style={{ marginTop: "20px" }}>
-          <button style={{ marginRight: "10px" }} onClick={() => navigate("/test/0")}>Restart</button>
-          <button onClick={() => window.location.href = "/eccentric-training"}>Go to Eccentric View Training</button>
+          <button style={{ marginRight: "10px" }} onClick={() => navigate("/test")}>Restart</button>
+          <button onClick={() => navigate("/eccentric-training")}>Go to Eccentric View Training</button>
         </div>
       </div>
     </div>
@@ -1854,7 +1847,7 @@ function PRLScrollTestPage() {
         {/* Resume button */}
         <button
           onClick={() => {
-            navigate('/test/0');
+            navigate('/test');
           }}
           style={{
             position: 'absolute',
@@ -1883,7 +1876,7 @@ export default function App() {
         <Route path="/" element={<RegistrationPage />} />
         <Route path="/existing-patient" element={<ExistingPatientPage />} />
         <Route path="/instructions" element={<InstructionsPage />} />
-        <Route path="/test/:index" element={<TestPageWrapper />} />
+        <Route path="/test" element={<TestPage />} />
         <Route path="/result/:power_grid" element={<ResultPage />} />
         <Route path="/success" element={<SuccessPage />} />
         <Route path="/eccentric-training" element={<EccentricViewTraining />} />
@@ -1895,10 +1888,4 @@ export default function App() {
       </Routes>
     </Router>
   );
-}
-
-// Wrapper for test page route params
-function TestPageWrapper() {
-  const { index } = useParams();
-  return <TestPage index={parseInt(index, 10)} />;
 }
